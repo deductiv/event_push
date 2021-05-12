@@ -75,24 +75,24 @@ import pysftp
 class epsftp(ReportingCommand):
 	doc='''
 	**Syntax:**
-	search | epsftp target=<target host> outputfile=<output path/filename> outputformat=[json|raw|kv|csv|tsv|pipe] fields="field1, field2, field3" compress=[true|false]
+	search | epsftp target=<target host alias> outputfile=<output path/filename> outputformat=[json|raw|kv|csv|tsv|pipe] fields="field1, field2, field3" compress=[true|false]
 
 	**Description**
-	Push Splunk events to an SFTP server in any format.
+	Push (export) Splunk events to an SFTP server in any format.
 	'''
 
 	# Define Parameters
 	target = Option(
 		doc='''
-		**Syntax:** **target=***<target_alias>*
-		**Description:** Reference to a target Box app within the configuration
+		**Syntax:** **target=***<target_host_alias>*
+		**Description:** Reference to a target SFTP server within the configuration
 		**Default:** The target configured as "Default" within the setup page (if any)''',
 		require=False)
 
 	outputfile = Option(
 		doc='''
 		**Syntax:** **outputfile=***<file path/file name>*
-		**Description:** The name of the file to be written to Box
+		**Description:** The name of the file to be written remotely
 		**Default:** The name of the user plus the timestamp and the output format, e.g. admin_1588000000.log
 			json=.json, csv=.csv, tsv=.tsv, pipe=.log, kv=.log, raw=.log''',
 		require=False)
@@ -292,7 +292,6 @@ class epsftp(ReportingCommand):
 				sftp.rename(remote_staging_filename, remote_target_filename)
 
 				if filename in sftp.listdir():
-					#new_file = box_folder_object.upload(local_output_file, file_name=filename)
 					message = "SFTP Push Status: Success. File name: %s" % (folder + '/' + filename)
 					eprint(message)
 					logger.info(message)

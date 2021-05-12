@@ -41,8 +41,9 @@ import splunklib.client as client
 import splunklib.results as results
 from splunklib.searchcommands import ReportingCommand, dispatch, Configuration, Option, validators
 import event_file
-import boto3
-from botocore.config import Config
+from ep_helpers import get_aws_connection
+#import boto3
+#from botocore.config import Config
 
 # Define class and type for Splunk command
 @Configuration()
@@ -134,7 +135,7 @@ class epawss3(ReportingCommand):
 
 		# Build the configuration
 		aws_config = get_config_from_alias(cmd_config, self.target)
-		
+		'''
 		# Enumerate proxy settings
 		http_proxy = os.environ.get('HTTP_PROXY')
 		https_proxy = os.environ.get('HTTPS_PROXY')
@@ -146,7 +147,7 @@ class epawss3(ReportingCommand):
 			logger.debug("HTTPS proxy: %s" % https_proxy)
 		if proxy_exceptions is not None:
 			logger.debug("Proxy Exceptions: %s" % proxy_exceptions)
-
+		
 		# Apply proxy settings to AWS config
 		proxy_definitions = {
 			'http': http_proxy,
@@ -173,6 +174,7 @@ class epawss3(ReportingCommand):
 		# Check for secret_key encryption
 		if not use_arn and aws_config['secret_key'][:1] == '$':
 			aws_config['secret_key'] = decrypt_with_secret(aws_config['secret_key'])
+		'''
 
 		if self.bucket is None:
 			if 'default_s3_bucket' in list(aws_config.keys()):
@@ -229,7 +231,12 @@ class epawss3(ReportingCommand):
 			local_output_file = local_output_file + '.gz'
 		
 		logger.debug("Staging file: %s" % local_output_file)
-
+		try:
+			s3 = get_aws_connection(aws_config)
+		except BaseException as e:
+			exit_error(logger, "Could not connect to AWS: " + repr(e), 741423)
+			
+		'''
 		if use_arn:
 			# Use the current/caller identity ARN from the EC2 instance to connect to S3
 			logger.debug("Using ARN to connect")
@@ -274,6 +281,7 @@ class epawss3(ReportingCommand):
 				exit_error(logger, "Could not connect to S3 using OAuth keys: " + repr(e), 6)
 		else:
 			exit_error(logger, "ARN not configured and credential not specified.", 8)
+		'''
 
 		event_counter = 0
 		# Write the output file to disk in the dispatch folder

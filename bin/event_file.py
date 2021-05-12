@@ -14,30 +14,37 @@ import time, datetime
 import json
 import gzip
 import logging
+from collections import OrderedDict
 
 # Add lib folder to import path
 path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib')
 sys.path.append(path_prepend)
 import deductiv_helpers as dhelp
 
-
-def flush_buffer(list, output_file):
+def flush_buffer(string_list, output_file):
 	with open(output_file, "ab") as f:
-		f.writelines(list)
+		f.writelines(string_list)
 
-def flush_buffer_gzip(list, output_file):
+def flush_buffer_gzip(string_list, output_file):
 	with gzip.open(output_file, "ab") as f:
-		f.writelines(list)
+		f.writelines(string_list)
 
 def write_events_to_file(events, fields, local_output, outputformat, compression):
 	logger = dhelp.setup_logging('event_push')
 
 	# Buffer variables
-	buf = []
+	output_file_buf = []
 	buffer_flush_count = 1000
 	event_counter = 0
+	first_field = None
+
+	if outputformat == 'json':
+		output_file_buf.append('['.encode('utf-8'))
 	
 	for event in events:
+		if first_field is None:
+			first_field = list(event.keys())[0]
+			dhelp.eprint('First field = ' + first_field)
 		# Get the fields list for the event
 		# Filter the fields if fields= is supplied
 		if fields is not None:
@@ -73,7 +80,7 @@ def write_events_to_file(events, fields, local_output, outputformat, compression
 					header += field + delimiter
 				# Strip off the last delimiter
 				header = header[:-1] + '\n'
-				buf.append(header.encode('utf-8'))
+				output_file_buf.append(header.encode('utf-8'))
 
 		output_text = ''
 		# Build the row of text
@@ -121,32 +128,47 @@ def write_events_to_file(events, fields, local_output, outputformat, compression
 					json_event[key] = event[key]
 			else:
 				json_event = event
-			output_text = json.dumps(json_event)
+			output_text = json.dumps(json_event) + ','
 
-		buf.append((output_text + '\n').encode('utf-8'))
+		# Append entry to the lists
+		output_file_buf.append((output_text + '\n').encode('utf-8'))
 		event_counter += 1
-		# Append text entry to list
-		if len(buf) == buffer_flush_count:
-			if compression:
-				flush_buffer_gzip(buf, local_output)
-			else:
-				flush_buffer(buf, local_output)
-			buf = []
+		#event_buf.append(event)
 
+		# Time to flush the buffers
+		if len(output_file_buf) == buffer_flush_count:
+			if compression:
+				flush_buffer_gzip(output_file_buf, local_output)
+			else:
+				flush_buffer(output_file_buf, local_output)
+			output_file_buf = []
+			
 		yield(event)
+	
+	if outputformat == 'json':
+		if isinstance(output_file_buf[-1], str):
+			dhelp.eprint(output_file_buf[-1])
+			output_file_buf[-1] = output_file_buf[-1].replace(',\n', '\n').encode('utf-8')
+		elif isinstance(output_file_buf[-1], bytes):
+			dhelp.eprint(output_file_buf[-1])
+			output_file_buf[-1] = output_file_buf[-1].decode('utf-8').replace(',\n', '\n').encode('utf-8')
+		output_file_buf.append(']'.encode('utf-8'))
 
 	if compression:
-		flush_buffer_gzip(buf, local_output)
+		flush_buffer_gzip(output_file_buf, local_output)
 	else:
-		flush_buffer(buf, local_output)
-
-	buf = None
+		flush_buffer(output_file_buf, local_output)
+	output_file_buf = None
 	logger.debug("Wrote temp output file " + local_output)
-
+	
+	#for x in sorted(event_buf, key=lambda k: k[first_field], reverse=True):
+	#	yield x
+	
 def parse_outputfile(outputfile, default_filename, target_config):
 
 	# Split the output into folder and filename
 	if outputfile is not None:
+		outputfile = outputfile.replace('\\', '/')
 		folder_list = outputfile.split('/')
 		if len(folder_list) == 1:
 			# No folder specified, use the default
@@ -174,7 +196,8 @@ def parse_outputfile(outputfile, default_filename, target_config):
 	if use_default_folder:
 		if 'default_folder' in list(target_config.keys()):
 			# Use the configured default folder
-			folder_list = target_config['default_folder'].strip('/').split('/') + folder_list
+			default_folder = target_config['default_folder'].replace('\\', '/')
+			folder_list = default_folder.strip('/').split('/') + folder_list
 		else:
 			# Use the root folder
 			folder_list = ['']

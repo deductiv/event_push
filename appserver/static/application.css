@@ -228,14 +228,16 @@ td.MuiTableCell-root.MuiTableCell-body.MuiTableCell-alignLeft {
 }
 /* Action column */
 td:first-child.MuiTableCell-root.MuiTableCell-body > div {
-  width: 53px;
+  width: 60px;
+  min-width: 50px;
   margin-left: auto;
   margin-right: auto;
 }
 /* Action icons */
 .MuiIconButton-root {
   color: var(--level2-color) !important;
-  padding: 0 3px;
+  padding: 0 3px !important;
+  min-width: 30px;
 }
 /* Action icons - disabled */
 .MuiIconButton-root.Mui-disabled {
@@ -260,6 +262,156 @@ label.MuiFormControlLabel-root {
 .MuiTypography-h6 {
   font-size: 14px !important;
 }
+
+/*
+.fade {
+  opacity: unset;
+}
+.modal.fade {
+  top: unset;
+}*/
+/*
+.fade {
+  transition: opacity 0.15s linear;
+  opacity: unset;
+}
+@media (prefers-reduced-motion: reduce) {
+  .fade {
+    transition: none;
+  }
+}
+.fade:not(.show) {
+  opacity: 0;
+}
+
+.collapse:not(.show) {
+  display: none;
+}
+
+.collapsing {
+  height: 0;
+  overflow: hidden;
+  transition: height 0.35s ease;
+}
+
+.modal-open {
+  overflow: hidden;
+}
+.modal-open .modal {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1060;
+  display: none;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  outline: 0;
+}
+
+.modal.fade .modal-dialog {
+  transition: transform 0.3s ease-out;
+  transform: translate(0, -50px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal.fade .modal-dialog {
+    transition: none;
+  }
+}
+.modal.show .modal-dialog {
+  transform: none;
+}*/
+
+/*from MLTK app */
+/*
+.modal.fade.in {
+  top: 40px;
+}
+.modal.fade {
+  -webkit-transition: opacity .125s,top .125s ease;
+  transition: opacity .125s,top .125s ease;
+  top: 0;
+}
+.modal-wide {
+  width: 800px;
+  margin-left: -400px;
+}
+.modal {
+  position: fixed;
+  top: 40px;
+  left: 50%;
+  width: 550px;
+  margin-left: -275px;
+  z-index: 1050;
+  background-color: #fff;
+  border: none;
+  -webkit-box-shadow: 0 3px 7px rgb(0 0 0 / 30%);
+  box-shadow: 0 3px 7px rgb(0 0 0 / 30%);
+  background-clip: border-box;
+  outline: none;
+}
+
+.modal:after {
+  content: "";
+  font-size: 0;
+  display: inline;
+  overflow: hidden;
+}
+.fade.in {
+  opacity: 1;
+}
+.fade {
+  opacity: 0;
+  -webkit-transition: opacity .125s;
+  transition: opacity .125s;
+}
+*/
+
+#ep_file_browser_modal {
+  height: 100%;
+}
+#ep_file_browser_modal > div {
+  height: 90%;
+}
+.modal.fade.in {
+  height: 60%;
+  min-height: 60%;
+}
+.modal-backdrop.fade {
+  opacity: 0.8;
+}
+
+.chonky-searchFieldContainer {
+  width: 50% !important;
+}
+.chonky-searchFieldInputInner {
+  margin-bottom: 0px !important;
+  margin-right: 5px !important;
+  border: 0px !important;
+  height: 20px !important;
+}
+.chonky-searchFieldInputInner:focus {
+  outline: none !important;
+  border-color: inherit !important;
+  -webkit-box-shadow: none !important;
+  box-shadow: none !important;
+}
+.chonky-fileListEmpty {
+  margin-top: 125px;
+}
+.chonky-baseButton[title="Switch to List view"] {
+  display: none;
+}
+div[class^='listFileEntryProperty-'] {
+  flex: 0 1 auto;
+}
+
 
 
 
