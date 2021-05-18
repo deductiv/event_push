@@ -13,6 +13,11 @@ const csvTransform = (packages) => {
   ].join('\n')
 }
 
+new webpack.DefinePlugin({
+  'process.env.REACT_APP_SC_ATTR': JSON.stringify('data-styled-event_push'),
+  'process.env.SC_ATTR': JSON.stringify('data-styled-event_push')
+})
+
 const po = (assets, entry_file, entry_file_object, entry_object) => {
     let exp = {};
     exp[entry_file] = {exports: [`${entry_file}`]};

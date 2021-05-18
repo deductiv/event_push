@@ -30,6 +30,9 @@ import validator from 'validator';
 import moment from 'moment';
 import 'moment-timezone';
 
+//import { keyframes } from "styled-components";
+import FadeIn from 'react-fade-in';
+
 // File browser UI
 import { setChonkyDefaults, FileBrowser, FileNavbar, FileToolbar, FileList, ChonkyActions } from 'chonky';
 import { ChonkyIconFA } from 'chonky-icon-fontawesome';
@@ -181,6 +184,29 @@ const config_descriptions = {
 	'ep_smb': 'SMB',
 }
 
+const LoadingOverlay = (props) => { 
+	return (
+		<div id="loading_overlay"
+			style={{
+				position: "fixed",
+				top: 0,
+				zIndex: 9999,
+				width: "100%",
+				height: "100%",
+				display: "block",
+				background: "rgba(0,0,0,0.6)"}}
+		> 
+			<div style={{
+				height: "100%",
+				display: "flex",
+				justifyContent: "center",
+				alignItems: "center"
+			}}>
+				<span className="spinner" ></span>
+			</div>
+		</div>
+	)
+}
 
 class App extends React.Component {
 	constructor(props) {
@@ -193,7 +219,8 @@ class App extends React.Component {
 			current_folder: '',				// 
 			current_config_container: '',				// 
 			current_config: '', 			// 
-			current_config_alias: '',		// end chonky
+			current_config_alias: '',		// end chonky,
+			loading: false,					// FadeIn control for chonky modal
 			error_states: { 
 				secret_key: true, 
 				private_key: true,
@@ -211,12 +238,12 @@ class App extends React.Component {
 		}
 
 		this.get_config_stanza("ep_general", "settings").then((d) => {
+			console.log("Setting state from get_config_stanza");
 			this.setState({"ep_general": d});
 		})
 		this.refresh_tables();
 		
-		//this.validate_secret_key = this.validate_secret_key.bind(this);
-		//this.validate_password_field = this.validate_password_field.bind(this);
+		this.validate_field = this.validate_field.bind(this);
 		this.refresh_tables = this.refresh_tables.bind(this);
 		this.dict_to_querystring = this.dict_to_querystring.bind(this);
 		this.rest_to_rows = this.rest_to_rows.bind(this);
@@ -232,30 +259,35 @@ class App extends React.Component {
 		this.delete_row_data = this.delete_row_data.bind(this);
 		this.handleFileAction = this.handleFileAction.bind(this);
 		this.show_folder_contents = this.show_folder_contents.bind(this);
-		this.FileBrowserModal = this.FileBrowserModal.bind(this);
 		this.updateParentState = this.updateParentState.bind(this);
+
+		// Tags
+		this.FileBrowserModal = this.FileBrowserModal.bind(this);
+		this.EPTabContent = this.EPTabContent.bind(this);
 	}
 
 	columns = {
 		ep_hec: [ 
 			{ title: "Stanza", field: "stanza", hidden: true },
+			// actions = 10%
 			{ title: "Default", field: "default", type: "boolean", width: "5%", headerStyle: center_table_header_styles },
 			{ title: "Name/Alias", field: "alias", width: "20%", validate: rowData => validators.string(rowData.alias).isValid }, 
-			{ title: "Hostname", field: "host", width: "35%", validate: rowData => validators.string(rowData.host).isValid },
+			{ title: "Hostname", field: "host", width: "25%", validate: rowData => validators.string(rowData.host).isValid },
 			{ title: "TCP Port", field: "port", width: "10%" },
 			{ title: "HEC Token", field: "token", width: "20%", validate: rowData => validators.uuid(rowData.token).isValid },
 			{ title: "SSL", field: "ssl", type: "boolean", width: "5%", initialEditValue: 1, headerStyle: center_table_header_styles }
 		],
 		ep_aws_s3: [
 			{ title: "Stanza", field: "stanza", hidden: true },
+			// actions = 10%
 			{ title: "Default", field: "default", type: "boolean", width: "5%", headerStyle: center_table_header_styles },
-			{ title: "Name/Alias", field: "alias", width: "15%", validate: rowData => validators.string(rowData.alias) }, 
+			{ title: "Name/Alias", field: "alias", width: "12%", validate: rowData => validators.string(rowData.alias) }, 
 			{ title: "Use ARN", field: "use_arn", type: "boolean", width: "5%", headerStyle: center_table_header_styles },
-			{ title: "Access Key ID", field: "access_key_id", width: "15%", 
+			{ title: "Access Key ID", field: "access_key_id", width: "12%", 
 				validate: rowData => ((validators.bool(rowData.use_arn).isValid && rowData.use_arn) || validators.string(rowData.access_key_id).isValid)
 			},
-			{ title: "Secret Access Key", field: "secret_key", width: "15%", cellStyle: cell_format,
-				render: rowData => <span className="password_field">{ ((rowData.secret_key === undefined || rowData.secret_key == '') ? '' : '*'.repeat(12))}</span>,
+			{ title: "Secret Access Key", field: "secret_key", width: "12%", cellStyle: cell_format,
+				render: rowData => <span className="password_field">{ ((rowData.secret_key === undefined || rowData.secret_key == '') ? '' : '*'.repeat(8))}</span>,
 				editComponent: props => (
 					<TextField
 						type="password"
@@ -263,24 +295,23 @@ class App extends React.Component {
 						error={this.state.error_states['secret_key']}
 						inputProps={{ "placeholder": "Secret Access Key" }}
 						onChange={e => {props.onChange(e.target.value)}}
-						/*onRowDataChange={event => { console.log(JSON.stringify(props)); console.log(event.target.id); console.log(event.target.value); if (props.rowData.use_arn) { console.log("Disable the input here"); props.disabled = true; } }}*/
 					/>), 
-				/*validate: rowData => this.validate_secret_key(rowData)*/
 				validate: rowData => this.validate_field(rowData, 'secret_key', 'password', (validators.bool(rowData.use_arn).isValid && rowData.use_arn))
 			},
 			{ title: "Region", field: "region", width: "10%", validate: rowData => validators.string(rowData.region) }, 
-			{ title: "Endpoint URL\n(Blank for AWS S3)", field: "endpoint_url", width: "15%" },
-			{ title: "Default Bucket ID", field: "default_s3_bucket", width: "20%" },
+			{ title: "Endpoint URL\n(Blank for AWS S3)", field: "endpoint_url", width: "12%" },
+			{ title: "Default Bucket ID", field: "default_s3_bucket", width: "12%" },
 			{ title: "Compress Output", field: "compress", type: "boolean", width: "5%", headerStyle: center_table_header_styles }
 		],
 		ep_box: [
 			{ title: "Stanza", field: "stanza", hidden: true },
+			// actions = 10%
 			{ title: "Default", field: "default", type: "boolean", width: "5%", headerStyle: center_table_header_styles },
 			{ title: "Name/Alias", field: "alias", width: "14%", validate: rowData => validators.string(rowData.alias) }, 
 			{ title: "Enterprise ID", field: "enterprise_id", width: "10%", validate: rowData => validators.string(rowData.enterprise_id) },
 			{ title: "Client ID", field: "client_id", width: "9%", validate: rowData => validators.string(rowData.client_id) },
 			{ title: "Client Secret", field: "client_secret", width: "9%", validate: rowData => this.validate_field(rowData, 'client_secret', 'password'),
-				render: rowData => <span className="password_field">{((rowData.client_secret === undefined || rowData.client_secret == '') ? '' : '*'.repeat(12))}</span>,
+				render: rowData => <span className="password_field">{((rowData.client_secret === undefined || rowData.client_secret == '') ? '' : '*'.repeat(8))}</span>,
 				editComponent: props => (
 					<TextField
 						error={this.state.error_states.client_secret}
@@ -303,7 +334,7 @@ class App extends React.Component {
 						rowsMax={4}
 						/>) },
 			{ title: "Passphrase", field: "passphrase", width: "8%", validate: rowData => this.validate_field(rowData, 'passphrase', 'password'),
-				render: rowData => <span className="password_field">{((rowData.passphrase === undefined || rowData.passphrase == '') ? '' : '*'.repeat(12))}</span>,
+				render: rowData => <span className="password_field">{((rowData.passphrase === undefined || rowData.passphrase == '') ? '' : '*'.repeat(8))}</span>,
 				editComponent: props => (
 					<TextField
 						error={this.state.error_states.passphrase}
@@ -317,6 +348,7 @@ class App extends React.Component {
 		],
 		ep_sftp: [
 			{ title: "Stanza", field: "stanza", hidden: true },
+			// actions = 10%
 			{ title: "Default", field: "default", type: "boolean", width: "5%", headerStyle: center_table_header_styles },
 			{ title: "Name/Alias", field: "alias", width: "14%", validate: rowData => validators.string(rowData.alias) }, 
 			{ title: "Hostname", field: "host", width: "35%", validate: rowData => validators.string(rowData.host) },
@@ -325,7 +357,7 @@ class App extends React.Component {
 				validate: rowData => this.validate_field(rowData, 'username', 'string', this.fields_are_populated(rowData, ['private_key'])) }, 
 			{ title: "Password", field: "password", width: "15%", 
 				validate: rowData => this.validate_field(rowData, 'password', 'password', this.fields_are_populated(rowData, ['private_key'])) ,
-				render: rowData => <span className="password_field">{((rowData.password === undefined || rowData.password == '') ? '' : '*'.repeat(12))}</span>,
+				render: rowData => <span className="password_field">{((rowData.password === undefined || rowData.password == '') ? '' : '*'.repeat(8))}</span>,
 				editComponent: props => (
 					<TextField
 						error={this.state.error_states.password}
@@ -348,7 +380,7 @@ class App extends React.Component {
 						rowsMax={4}
 						/>) },
 			{ title: "Passphrase", field: "passphrase", width: "8%", 
-				render: rowData => <span className="password_field">{((rowData.passphrase === undefined || rowData.passphrase == '') ? '' : '*'.repeat(12))}</span>,
+				render: rowData => <span className="password_field">{((rowData.passphrase === undefined || rowData.passphrase == '') ? '' : '*'.repeat(8))}</span>,
 				editComponent: props => (
 					<TextField
 						type="password"
@@ -361,6 +393,7 @@ class App extends React.Component {
 		],
 		ep_smb: [
 			{ title: "Stanza", field: "stanza", hidden: true },
+			// actions = 10%
 			{ title: "Default", field: "default", type: "boolean", width: "5%", headerStyle: center_table_header_styles },
 			{ title: "Name/Alias", field: "alias", width: "14%", validate: rowData => validators.string(rowData.alias) }, 
 			{ title: "Hostname", field: "host", width: "35%", validate: rowData => validators.string(rowData.host) },
@@ -368,7 +401,7 @@ class App extends React.Component {
 			{ title: "Username", field: "username", width: "15%", validate: rowData => validators.string(rowData.username) },
 			{ title: "Password", field: "password", width: "15%", 
 			validate: rowData => this.validate_field(rowData, 'private_key', 'password', this.fields_are_populated(rowData, ['password'])),
-				render: rowData => <span className="password_field">{((rowData.password === undefined || rowData.password == '') ? '' : '*'.repeat(12))}</span>,
+				render: rowData => <span className="password_field">{((rowData.password === undefined || rowData.password == '') ? '' : '*'.repeat(8))}</span>,
 				editComponent: props => (
 					<TextField
 						error={this.state.error_states.password}
@@ -383,57 +416,56 @@ class App extends React.Component {
 		]
 	};
 
-
-	FileBrowserModal = (props) => {
-		console.log("Props: " + JSON.stringify(props));
-		console.log("Show: " + JSON.stringify(this.state.show_file_browser));
-		//const [fbShow, setFbShow] = useState(false);
-		const document = useRef(null);
-		
-		return (			
+	FileBrowserModal = (props) => {		
+		return (
 			<Modal
-			  //size="lg"
-			  id="ep_file_browser_modal"
-			  show={this.state.show_file_browser}
-			  onHide={() => this.setState({show_file_browser: false})}
-			  //onEnter={() => {document.getElementById('ep_file_browser_modal').classes.add('in');}}
-			  dialogClassName={"primaryModal"}
-			  aria-labelledby="ep_file_browser"
-			  centered={true}
-			  className="modal-wide in"
-			  style={{height: '60%', resize: 'vertical'}}
-			  //bsPrefix={'ep_bs_'}
+				//size="lg"
+				id="ep_file_browser_modal"
+				show={this.state.show_file_browser}
+				onHide={ () => {
+					console.log("Setting state from FileBrowserModal");
+					this.setState({
+						show_file_browser: false,
+						file_list: [],
+						folder_chain: []
+					})}
+				}
+				dialogClassName={"primaryModal"}
+				aria-labelledby="ep_file_browser"
+				centered={true}
+				className="modal-wide in"
+				style={{height: '60%', resize: 'vertical'}}
 			>
-			  <Modal.Header closeButton>
-				<Modal.Title id="ep_file_browser">
-				  Browse Location: {config_descriptions[this.state.current_config]} / {this.state.current_config_alias} 
-				</Modal.Title>
-			  </Modal.Header>
-			  <Modal.Body
-			  	style={{height: '100%'}}>
-				  <FileBrowser
-					instanceId={props.instanceId}
-					files={this.state.file_list}
-					folderChain={this.state.folder_chain}
-					fillParentContainer={true}
-					onFileAction={this.handleFileAction}
-					defaultFileViewActionId={ChonkyActions.EnableListView.id}
-					disableDragAndDrop={true}
-					disableDragAndDropProvider={true}
-					disableSelection={true}
-					disableDefaultFileActions={[
-						ChonkyActions.OpenSelection.id,
-						ChonkyActions.SelectAllFiles.id,
-						ChonkyActions.ClearSelection.id,
-						ChonkyActions.EnableCompactView.id,
-						ChonkyActions.EnableGridView.id
-					]}
-				>
-					<FileNavbar />
-					<FileToolbar />
-					<FileList />
-				</FileBrowser>
-			  </Modal.Body>
+				<Modal.Header closeButton>
+					<Modal.Title id="ep_file_browser">
+					Browse Location: {config_descriptions[this.state.current_config]} / {this.state.current_config_alias} 
+					</Modal.Title>
+				</Modal.Header>
+				<Modal.Body
+					style={{height: '100%'}}>
+					<FileBrowser
+						instanceId={props.instanceId}
+						files={this.state.file_list}
+						folderChain={this.state.folder_chain}
+						fillParentContainer={true}
+						onFileAction={this.handleFileAction}
+						defaultFileViewActionId={ChonkyActions.EnableListView.id}
+						disableDragAndDrop={true}
+						disableDragAndDropProvider={true}
+						disableSelection={true}
+						disableDefaultFileActions={[
+							ChonkyActions.OpenSelection.id,
+							ChonkyActions.SelectAllFiles.id,
+							ChonkyActions.ClearSelection.id,
+							ChonkyActions.EnableCompactView.id,
+							ChonkyActions.EnableGridView.id
+						]}
+					>
+						<FileNavbar />
+						<FileToolbar />
+						<FileList />
+					</FileBrowser>
+				</Modal.Body>
 			</Modal>
 		);
 	}
@@ -465,6 +497,7 @@ class App extends React.Component {
 			let error_status = !is_valid
 			// Inverse - true validation = no error
 			if (error_status !== this.state.error_states[field]) {
+				console.log("Setting state from validate_field");
 				this.setState(prev_state => ({
 					error_states: {
 						...prev_state.error_states,
@@ -478,15 +511,19 @@ class App extends React.Component {
 		return is_valid;
 	}
 	
+	// Download the data and push it into the corresponding state entry
 	refresh_tables = () => {
 		let tables = Object.keys(this.columns);
+		//let state_updates = {};
 		for (let table of tables) {
 			this.get_config(table).then((d) => {
+				// Convert the REST response data into a usable row format
 				d = this.rest_to_rows(table, d);
 				this.setState({[table]: d});
 			})
 		}
 	}
+	//
 
 	// Convert an object to an HTTP query string (for Splunk configuration POST requests)
 	dict_to_querystring = (d) => {
@@ -573,8 +610,6 @@ class App extends React.Component {
 	}
 	
 	put_config_item = (config_file, items) => {
-		//console.log(`config = ${config_file}`);
-		//console.log(`items = ${JSON.stringify(items)}`);
 		
 		return new Promise((resolve, reject) => {
 			if ( 'stanza' in items ) {
@@ -614,6 +649,7 @@ class App extends React.Component {
 				}
 				await this.put_config_item(config_file, new_data);
 				dataNew.push(new_data);
+				console.log("Setting state from add_row_data");
 				this.setState({[config_file]: dataNew});
 				resolve();
 			}, 1000);
@@ -622,7 +658,7 @@ class App extends React.Component {
 
 	// Update the configuration file using the EAI REST endpoint
 	update_config_item = (config_file, item) => {
-		console.log("Item = " + JSON.stringify(item));
+		//console.log("Item = " + JSON.stringify(item));
 		return new Promise((resolve, reject) => {
 			this.props.splunk.request(`event_push/${config_file}/${item.stanza}`,
 				"POST",
@@ -655,6 +691,7 @@ class App extends React.Component {
 					this.unset_default_entry(config_file, new_data.stanza);
 				}
 				await this.update_config_item(config_file, new_data);
+				console.log("Setting state from update_row_data");
 				this.setState({[config_file]: dataUpdate});
 				resolve();
 			}, 1000)
@@ -688,6 +725,7 @@ class App extends React.Component {
 				const index = oldData.tableData.id;
 				dataDelete.splice(index, 1);
 				await this.delete_config_item(config_file, oldData.stanza);
+				console.log("Setting state from delete_row_data");
 				this.setState({[config_file]: dataDelete});
 				resolve();
 			}, 1000)
@@ -699,9 +737,6 @@ class App extends React.Component {
 				if (!data.payload.targetFile || !data.payload.targetFile.isDir) return;
 
 				const newPrefix = `${data.payload.targetFile.id.replace(/\/*$/, '')}/`;
-				console.log(`Key prefix: ${newPrefix}`);
-				console.log(`data: ${JSON.stringify(data)}`);
-				//setKeyPrefix(newPrefix);
 				this.show_folder_contents(this.state.current_config, this.state.current_config_alias, this.state.current_config_container, newPrefix)
 			}
 		}
@@ -709,66 +744,86 @@ class App extends React.Component {
 	// Set the state data when adding a configuration item using the table view
 	show_folder_contents = (config_file, alias, container_name, folder) => {
 		return new Promise((resolve, reject) => {
-			setTimeout(async () => {
-				console.log("Showing folder data for: " + config_file + "\n" + alias + "\n"  + container_name + "\n"  + folder);
-				this.setState({show_file_browser: true});
-
-				let url='event_push_dirlist';
-				let params = {
-					"config": config_file,
-					"alias": alias
-				};
-				if (container_name === undefined || container_name === null || container_name.length == 0) {
-					container_name = '/' 
-				}
-				// Start with the root file (folder) object - container_name = share, bucket, /, etc.
-				let chain = [{
-					id: container_name, // '/',
-					name: container_name,
-					isDir: true,
-				}];
-				console.log(`[${container_name}] [${folder.replace(/^\/+|\/+$/, "")}]`);
-				if (folder !== undefined && folder !== null && folder.replace(/^\/+|\/+$/, "") != container_name) {
-					params["folder"] = folder
-					let chain_path = '';
-					for (let f of folder.replace(/^\/+|\/+$/, "").split('/')) {
-						if ( f.length > 0 ) {
-							chain_path = chain_path + '/' + f;
-							chain.push({
-								id: chain_path,
-								name: f,
-								isDir: true
-							})
-							console.log("f = " + f);
+//			setTimeout(async () => {
+				//console.log("Showing folder data for: " + config_file + "\n" + alias + "\n"  + container_name + "\n"  + folder);
+				//console.log("Loading: " + JSON.stringify(this.state.loading));
+				//console.log("Setting state from show_folder_contents (first)");
+				this.setState({loading: true, show_file_browser: true}, 
+					() => { // then
+						let url='event_push_dirlist';
+						let params = {
+							"config": config_file,
+							"alias": alias
+						};
+						if (container_name === undefined || container_name === null || container_name.length == 0) {
+							container_name = '/' 
 						}
-					}
-				}
-				console.log("Setting chain to: " + JSON.stringify(chain));
-				// Pass parameters into state so they are accessible by handleFileAction 
-				this.setState({folder_chain: chain});
-				this.setState({current_config: config_file});
-				this.setState({current_config_alias: alias});
-				this.setState({current_config_container: container_name});
-				//console.log('Chain = ' + JSON.stringify(chain));
+						// Start with the root - /
+						let chain = [{
+							id: '/',
+							name: '/',
+							isDir: true
+						}];
+						
+						// If the query folder is blank, use the default container name in the chain
+						// else, use what's in the folder setting only
 
-				this.props.splunk.get(url, params)
-				.then((d) => {
-					let file_list = JSON.parse(d);
-					if (file_list !== null) {
-						//console.log("File list = " + JSON.stringify(file_list));
-						for (var f=0; f<file_list.length; f++) {
-							if ( file_list[f].modDate !== undefined ) {
-								file_list[f].modDate = moment.unix(file_list[f].modDate).format('YYYY-MM-DD hh:mm:ss ZZ');
+						if (folder !== undefined && folder !== null && folder.length > 0) {
+							params["folder"] = folder
+							let chain_path = '';
+
+							for (let f of folder.replace(/^\/+|\/+$/, "").split('/')) {
+								if ( f.length > 0 ) {
+									chain_path = chain_path + '/' + f;
+									chain.push({
+										id: chain_path,
+										name: f,
+										isDir: true
+									})
+									console.log("f = " + f);
+								}
 							}
+						} else if ( (folder === undefined || folder === null || folder.length == 0) && container_name != '/' ) {
+							// Append the root file (folder) object - container_name = share, bucket, /, etc.
+							chain.push({
+								id: container_name, // '/',
+								name: container_name,
+								isDir: true
+							});
 						}
-						this.setState({"file_list": file_list});
+						//console.log("Setting chain to: " + JSON.stringify(chain));
+
+						this.props.splunk.get(url, params)
+						.then((d) => {
+							let file_list = JSON.parse(d);
+							if (file_list !== null) {
+								//console.log("File list = " + JSON.stringify(file_list));
+								for (var f=0; f<file_list.length; f++) {
+									if ( file_list[f].modDate !== undefined ) {
+										file_list[f].modDate = moment.unix(file_list[f].modDate).format('YYYY-MM-DD hh:mm:ss ZZ');
+									}
+								}
+								//console.log("Setting state from show_folder_contents (second)");
+								this.setState({"file_list": file_list}, () => {
+									//console.log("Loading2: " + JSON.stringify(this.state.loading));
+									//console.log("Setting state from show_folder_contents (last)");
+									this.setState({loading: false,
+										folder_chain: chain,
+										current_config: config_file,
+										current_config_alias: alias,
+										current_config_container: container_name});
+								});
+							}
+							resolve(file_list);
+						}, reason => {
+							alert(`Error retrieving the file listing: ${reason.statusText} (${reason.status})`);
+							this.setState({loading: false});
+							reject(reason);
+						}) ;
 					}
-					resolve(file_list);
-					//resolve(clear["entry"][0]["content"]);
-				});
-				
+				);
 				resolve();
-			}, 1000);
+//			}, 1000);
 		});
 	}
 
@@ -780,11 +835,68 @@ class App extends React.Component {
 		this.setState(Object.assign(this.state, prop));
 	};
 
+
+	EPTabContent = (props) => {
+		const title = props.title || "";
+		const heading = props.heading || "";
+		const action_columns = props.action_columns || "2";
+		const browsable = booleanize(props.browsable || "false");
+		const config = props.config;
+
+		return(
+			<div className="form form-horizontal form-complex">
+				<h1>{title}</h1>
+				{(props.children != null && props.children.length > 0) && (
+					<div style={{width: '700px', paddingBottom: '15px'}}>
+						<p>{props.children}</p>
+					</div>
+				)}
+
+				<div className="panel-element-row">
+					<MaterialTable
+						components={{
+							Container: props => (
+								<div className={"actionicons-" + action_columns}>
+									<div {...props} />
+								</div>
+							)
+						}}
+						title={
+							<div className="form form-complex">
+								<h2>{heading}</h2>
+							</div>
+						}
+						icons={tableIcons}
+						columns={this.columns[config]}
+						data={this.state[config]}
+						editable={{
+							onRowAdd: newData => this.add_row_data(config, newData),
+							onRowUpdate: (newData, oldData) => this.update_row_data(config, newData, oldData),
+							onRowDelete: oldData => this.delete_row_data(config, oldData)
+						}}
+						actions={ (browsable && [{
+							  icon: tableIcons.Open,
+							  tooltip: 'Browse',
+							  onClick: (event,rowData) => { this.show_folder_contents(config, rowData.alias, rowData.share_name, rowData.default_folder) }
+						}])}
+						options={table_options}
+						className={"actionicons-" + action_columns}
+					/>
+				</div>
+			</div>
+		)
+	}
+
 	render() {
 		let self = this;
-
+		console.log("Rendering");
 		return (
 			<div>
+				{this.state.loading && (
+					<FadeIn transitionDuration="125">
+						<LoadingOverlay />
+					</FadeIn>
+				)}
 				<Tabs id="tabs_list" className="nav nav-tabs" 
 					defaultIndex={0} transition={false} >
 					<TabList className="nav nav-tabs">
@@ -812,6 +924,7 @@ class App extends React.Component {
 												log_level: event.target.value
 											}
 										)
+										console.log("Setting state from General Settings tab");
 										this.setState({"ep_general": {log_level: event.target.value}});
 									}}>
 									<MenuItem value="DEBUG">Debug</MenuItem>
@@ -824,140 +937,48 @@ class App extends React.Component {
 						</div>
 					</TabPanel>
 					<TabPanel className="tab-pane">
-						<div className="form form-horizontal form-complex">
-							<h1>Splunk HTTP Event Collector Event Push (ephec)</h1>
-							<div className="panel-element-row">
-								<MaterialTable
-									title={
-										<div className="form form-complex">
-											<h2>Splunk HTTP Event Collector Connections</h2>
-										</div>
-									}
-									icons={tableIcons}
-									columns={this.columns.ep_hec}
-									data={self.state.ep_hec}
-									editable={{
-										onRowAdd: newData => this.add_row_data("ep_hec", newData),
-										onRowUpdate: (newData, oldData) => this.update_row_data("ep_hec", newData, oldData),
-										onRowDelete: oldData => this.delete_row_data("ep_hec", oldData)
-									}}
-									options={table_options}
-								/>
-							</div>
-						</div>
+						<this.EPTabContent 
+							title="Splunk HTTP Event Collector Event Push (ephec)" 
+							heading="Splunk HTTP Event Collector Connections" 
+							action_columns="2" 
+							config="ep_hec" />
 					</TabPanel>
 					<TabPanel className="tab-pane">
-						<div className="form form-horizontal form-complex">
-							<div>
-								<h1>Amazon Web Services S3 Event Push (epawss3)</h1>
-							</div>
-							<div className="panel-element-row">
-								<MaterialTable
-									title={
-										<div className="form form-complex">
-											<h2>AWS S3-Compatible Connections</h2>
-										</div>
-									}
-									icons={tableIcons}
-									columns={this.columns.ep_aws_s3}
-									data={self.state.ep_aws_s3}
-									editable={{
-										onRowAdd: newData => this.add_row_data("ep_aws_s3", newData),
-										onRowUpdate: (newData, oldData) => this.update_row_data("ep_aws_s3", newData, oldData),
-										onRowDelete: oldData => this.delete_row_data("ep_aws_s3", oldData)
-									}}
-									options={table_options}
-									actions={[{
-										  icon: tableIcons.Open,
-										  tooltip: 'Browse',
-										  onClick: (event,rowData) => { this.show_folder_contents("ep_aws_s3", rowData.alias, rowData.default_s3_bucket, '') }
-									}]}
-								/>
-							</div>
-						</div>
+						<this.EPTabContent 
+							title="Amazon Web Services S3 Event Push (epawss3)" 
+							heading="AWS S3-Compatible Connections" 
+							action_columns="3"
+							browsable="true"
+							config="ep_aws_s3" />
 					</TabPanel>
 					<TabPanel className="tab-pane">
-						<div className="form form-horizontal form-complex">
-							
-							<h1 style={{paddingBottom: '5px'}}>Box (epbox)</h1>
-							<div style={{width: '700px', paddingBottom: '15px'}}>
-								<p>In your <a href="https://app.box.com/developers/console/newapp">Box Admin Console</a>, create a new Custom App with Server Authentication (with JWT) and create a new key pair to get this information. Then, submit the new app for authorization.</p>
-							</div>
-							<div className="panel-element-row">
-								<MaterialTable
-									title={
-										<div className="form form-complex">
-											<h2>Box Connections</h2>
-										</div>
-									}
-									icons={tableIcons}
-									columns={this.columns.ep_box}
-									data={self.state.ep_box}
-									editable={{
-										onRowAdd: newData => this.add_row_data("ep_box", newData),
-										onRowUpdate: (newData, oldData) => this.update_row_data("ep_box", newData, oldData),
-										onRowDelete: oldData => this.delete_row_data("ep_box", oldData)
-									}}
-									options={table_options}
-								/>
-							</div>
-						</div>
+						<this.EPTabContent 
+							title="Box (epbox)" 
+							heading="Box Connections" 
+							action_columns="3"
+							browsable="true"
+							config="ep_box">
+								In your <a href="https://app.box.com/developers/console/newapp">Box Admin Console</a>, create a new Custom App with Server Authentication (with JWT) and create a new key pair to get this information. Then, submit the new app for authorization.
+						</this.EPTabContent>
 					</TabPanel>
 					<TabPanel className="tab-pane">
-						<div className="form form-horizontal form-complex">
-							
-							<h1 style={{paddingBottom: '5px'}}>SFTP (epsftp)</h1>
-							<div className="panel-element-row">
-								<MaterialTable
-									title={
-										<div className="form form-complex">
-											<h2>SFTP Connections</h2>
-										</div>
-									}
-									icons={tableIcons}
-									columns={this.columns.ep_sftp}
-									data={self.state.ep_sftp}
-									editable={{
-										onRowAdd: newData => this.add_row_data("ep_sftp", newData),
-										onRowUpdate: (newData, oldData) => this.update_row_data("ep_sftp", newData, oldData),
-										onRowDelete: oldData => this.delete_row_data("ep_sftp", oldData)
-									}}
-									options={table_options}
-								/>
-							</div>
-						</div>
+						<this.EPTabContent 
+							title="SFTP (epsftp)" 
+							heading="SFTP Connections" 
+							action_columns="3"
+							browsable="true"
+							config="ep_sftp" />
 					</TabPanel>
 					<TabPanel className="tab-pane">
-						<div className="form form-horizontal form-complex">
-							
-							<h1 style={{paddingBottom: '5px'}}>SMB (epsmb)</h1>
-							<div className="panel-element-row">
-								<MaterialTable
-									title={
-										<div className="form form-complex">
-											<h2>SMB Connections</h2>
-										</div>
-									}
-									actions={[{
-										  icon: tableIcons.Open,
-										  tooltip: 'Browse',
-										  onClick: (event,rowData) => { this.show_folder_contents("ep_smb", rowData.alias, rowData.share_name, rowData.default_folder) }
-									}]}
-									icons={tableIcons}
-									columns={this.columns.ep_smb}
-									data={self.state.ep_smb}
-									editable={{
-										onRowAdd: newData => this.add_row_data("ep_smb", newData),
-										onRowUpdate: (newData, oldData) => this.update_row_data("ep_smb", newData, oldData),
-										onRowDelete: oldData => this.delete_row_data("ep_smb", oldData)
-									}}
-									options={table_options}
-								/>
-							</div>
-						</div>
+						<this.EPTabContent 
+							title="SMB (epsmb)" 
+							heading="SMB Connections" 
+							action_columns="3"
+							browsable="true"
+							config="ep_smb" />
 					</TabPanel>
 				</Tabs>
-				<this.FileBrowserModal id="test_prop" instanceId="ep" />
+				<this.FileBrowserModal id="file_browser" instanceId="ep" />
 			</div>
 		);
 	}

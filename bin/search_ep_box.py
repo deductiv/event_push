@@ -43,6 +43,7 @@ import splunklib.client as client
 import splunklib.results as results
 from splunklib.searchcommands import ReportingCommand, dispatch, Configuration, Option, validators
 import event_file
+from ep_helpers import get_box_connection
 
 # Import the correct version of cryptography
 # https://pypi.org/project/cryptography/
@@ -170,7 +171,8 @@ class epbox(ReportingCommand):
 			logger.debug("Target configuration: " + str(target_config))
 		except BaseException as e:
 			exit_error(logger, "Error reading target server configuration: " + repr(e), 124812)
-
+		
+		'''
 		# Check to see if we have credentials
 		valid_settings = []
 		for l in list(target_config.keys()):
@@ -207,7 +209,8 @@ class epbox(ReportingCommand):
 				exit_error(logger, "Could not find required certificate settings", 2823872)
 		else:
 			exit_error(logger, "Could not find required configuration settings", 2823874)
-		
+		'''
+
 		file_extensions = {
 			'raw':  '.log',
 			'kv':   '.log',
@@ -289,66 +292,58 @@ class epbox(ReportingCommand):
 			if filename[-3:] != '.gz':
 				filename = filename + '.gz'
 		
-		if auth is not None:
+		#if auth is not None:
 			
-			# Use the credential to connect to Box
-			try:
-				client = Client(auth)
+		# Use the credential to connect to Box
+		try:
+			client = get_box_connection(target_config)
+		except BaseException as e:
+			exit_error(logger, "Could not connect to box: " + repr(e))
 
-				root_folder_id = '0'
-				subfolders = folder.strip('/').split('/')
-				if '' in subfolders:
-					subfolders.remove('')
-				logger.debug("Folders: %s" % str(subfolders))
-				# Prepend the list with the root element
-				box_folder_object = client.root_folder().get()
-				# Walk the folder path until we find the target directory
-				for subfolder_name in subfolders:
-					logger.debug("Looking for folder: %s" % subfolder_name)
-					# Get the folder ID for the string specified from the list of child subfolders
-					# folder object is from the previous iteration
-					folder_contents = box_folder_object.get_items()
-					folder_found = False
-					for item in folder_contents:
-						if item.type == 'folder':
-							#logger.debug('{0} {1} is named "{2}"'.format(item.type.capitalize(), item.id, item.name))
-							if subfolder_name == item.name:
-								logger.debug("Found a target folder ID: %s" % str(item.id))
-								box_folder_object = client.folder(folder_id=item.id)
-								folder_found = True
-					if not folder_found:
-						# Create the required subfolder
-						box_folder_object = box_folder_object.create_subfolder(subfolder_name)
+		subfolders = folder.strip('/').split('/')
+		if '' in subfolders:
+			subfolders.remove('')
+		logger.debug("Folders: %s" % str(subfolders))
+		# Prepend the list with the root element
+		box_folder_object = client.root_folder().get()
+		# Walk the folder path until we find the target directory
+		for subfolder_name in subfolders:
+			logger.debug("Looking for folder: %s" % subfolder_name)
+			# Get the folder ID for the string specified from the list of child subfolders
+			# folder object is from the previous iteration
+			folder_contents = box_folder_object.get_items()
+			folder_found = False
+			for item in folder_contents:
+				if item.type == 'folder':
+					#logger.debug('{0} {1} is named "{2}"'.format(item.type.capitalize(), item.id, item.name))
+					if subfolder_name == item.name:
+						logger.debug("Found a target folder ID: %s" % str(item.id))
+						box_folder_object = client.folder(folder_id=item.id)
+						folder_found = True
+			if not folder_found:
+				# Create the required subfolder
+				box_folder_object = box_folder_object.create_subfolder(subfolder_name)
 
-				try:
-					event_counter = 0
-					# Write the output file to disk in the dispatch folder
-					logger.debug("Writing events to file %s in %s format. Compress=%s\n\tfields=%s", local_output_file, self.outputformat, self.compress, self.fields)
-					for event in event_file.write_events_to_file(events, self.fields, local_output_file, self.outputformat, self.compress):
-						yield event
-						event_counter += 1
+		try:
+			event_counter = 0
+			# Write the output file to disk in the dispatch folder
+			logger.debug("Writing events to file %s in %s format. Compress=%s\n\tfields=%s", local_output_file, self.outputformat, self.compress, self.fields)
+			for event in event_file.write_events_to_file(events, self.fields, local_output_file, self.outputformat, self.compress):
+				yield event
+				event_counter += 1
 
-				except BoxAPIException as be:
-					exit_error(logger, be.message, 833928)
-				except BaseException as e:
-					exit_error(logger, "Error writing file to upload", 398372)
+		except BoxAPIException as be:
+			exit_error(logger, be.message, 833928)
+		except BaseException as e:
+			exit_error(logger, "Error writing file to upload", 398372)
 
-				#yield({"Result": "Success", "File": new_file.name, "FileID": new_file.id})
-			except BoxAPIException as be:
-				exit_error(logger, be.message, 83)
-			except BaseException as e:
-				exit_error(logger, "Could not connect to Box: " + repr(e), 6)
-		
-			try:
-				new_file = box_folder_object.upload(local_output_file, file_name=filename)
-				message = "Box Event Push Status: Success. File name: %s, File ID: %s" % (new_file.name, new_file.id)
-				eprint(message)
-				logger.info(message)
-			except BaseException as e:
-				exit_error(logger, "Error uploading file to Box: " + repr(e), 109693)
-		else:
-			exit_error(logger, "Box credential not configured.", 8)
-		
+		try:
+			new_file = box_folder_object.upload(local_output_file, file_name=filename)
+			message = "Box Event Push Status: Success. File name: %s, File ID: %s" % (new_file.name, new_file.id)
+			eprint(message)
+			logger.info(message)
+		except BaseException as e:
+			exit_error(logger, "Error uploading file to Box: " + repr(e), 109693)		
 
 dispatch(epbox, sys.argv, sys.stdin, sys.stdout, __name__)
 

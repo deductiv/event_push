@@ -11,7 +11,8 @@ import json
 #sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib'))
-# pylint: disable=import-error
+# pylint: disable=import-error 
+# pyright: reportMissingImports=false
 from splunk.clilib import cli_common as cli
 import splunk.entity as entity
 import splunklib.client as client
@@ -99,9 +100,11 @@ class RemoteDirectoryListingHandler(PersistentServerConnectionApplication):
 			logger.debug('datasource_config = ' + str(datasource_config))
 			if datasource_config is not None:
 				# Set the defaults
-				if 'folder' not in list(query.keys()):
-					if 'default_bucket' in list(datasource_config.keys()):
-						query['folder'] = datasource_config['default_bucket']
+				if 'folder' not in list(query.keys()) or len(query['folder']) == 0:
+					logger.debug("Folder is blank or 0 length")
+					# AWS specific - set the default bucket
+					if 'default_s3_bucket' in list(datasource_config.keys()):
+						query['folder'] = '/' + datasource_config['default_s3_bucket']
 					else:
 						query['folder'] = ''
 					if 'default_folder' in list(datasource_config.keys()):

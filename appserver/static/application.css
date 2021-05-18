@@ -228,12 +228,18 @@ td.MuiTableCell-root.MuiTableCell-body.MuiTableCell-alignLeft {
 }
 /* Action column */
 td:first-child.MuiTableCell-root.MuiTableCell-body > div {
-  width: 60px;
-  min-width: 50px;
   margin-left: auto;
   margin-right: auto;
 }
 /* Action icons */
+.actionicons-2 > div > div > div > div > div > table > thead > tr > th:first-child.MuiTableCell-root.MuiTableCell-head, .actionicons-2 > div > div > div > div > div > table > tbody > tr > td:first-child.MuiTableCell-root.MuiTableCell-body > div {
+  width: 60px !important;
+  min-width: 50px;
+}
+.actionicons-3 > div > div > div > div > div > table > thead > tr > th:first-child.MuiTableCell-root.MuiTableCell-head, .actionicons-3 > div > div > div > div > div > table > tbody > tr > td:first-child.MuiTableCell-root.MuiTableCell-body, .actionicons-3 > div > div > div > div > div > table > tbody > tr > td:first-child.MuiTableCell-root.MuiTableCell-body > div {
+  width: 90px !important;
+  min-width: 60px;
+}
 .MuiIconButton-root {
   color: var(--level2-color) !important;
   padding: 0 3px !important;
@@ -244,7 +250,7 @@ td:first-child.MuiTableCell-root.MuiTableCell-body > div {
   color: var(--level3-color) !important;
   padding: 0 3px;
 }
-/* Underlines in tables - invalid fields */
+/* Underlines in tables - invalid field data */
 .MuiInput-underline.Mui-error:after {
   border-bottom-color: var(--level3-color) !important;
 }
@@ -401,6 +407,7 @@ label.MuiFormControlLabel-root {
   border-color: inherit !important;
   -webkit-box-shadow: none !important;
   box-shadow: none !important;
+  background-color: #ffffff00;
 }
 .chonky-fileListEmpty {
   margin-top: 125px;
@@ -409,9 +416,26 @@ label.MuiFormControlLabel-root {
   display: none;
 }
 div[class^='listFileEntryProperty-'] {
-  flex: 0 1 auto;
+  /*flex: 0 1 auto;*/
 }
 
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px var(--white-color) solid;
+  border-top: 4px var(--level1-color-alt) solid;
+  border-radius: 50%;
+  animation: sp-anime 0.8s infinite linear;
+}
+
+@keyframes sp-anime {
+  0% {
+      transform: rotate(0deg);
+  }
+  100% {
+      transform: rotate(359deg);
+  }
+}
 
 
 

@@ -3,19 +3,40 @@ import random
 import sys, os, platform
 import re
 import socket
-from datetime import datetime, timezone
+#from datetime import datetime, timezone
 from deductiv_helpers import setup_logger, str2bool, decrypt_with_secret
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib'))
 
+os_platform = platform.system()
+py_major_ver = sys.version_info[0]
+# Import the correct version of platform-specific libraries
+if os_platform == 'Linux':
+	if py_major_ver == 3:
+		path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib', 'py3_linux_x86_64')
+	elif py_major_ver == 2:
+		path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib', 'py2_linux_x86_64')
+elif os_platform == 'Darwin': # Does not work with Splunk Python3 build. It requires code signing for libs.
+	if py_major_ver == 3:
+		path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib', 'py3_darwin_x86_64')
+	elif py_major_ver == 2:
+		path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib', 'py2_darwin_x86_64')
+elif os_platform == 'Windows':
+	if py_major_ver == 3:
+		path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib', 'py3_win_amd64')
+	elif py_major_ver == 2:
+		path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib', 'py2_win_amd64')
+sys.path.append(path_prepend)
+
 # pylint: disable=import-error
+# Box.com
+from boxsdk import JWTAuth, Client, BoxAPIException
 # AWS libraries
 import boto3
 from botocore.config import Config
 # PySMB
 from smb.SMBConnection import SMBConnection
-
 
 # Enumerate proxy settings
 http_proxy = os.environ.get('HTTP_PROXY')
@@ -23,6 +44,7 @@ https_proxy = os.environ.get('HTTPS_PROXY')
 proxy_exceptions = os.environ.get('NO_PROXY')
 
 logger = setup_logger('DEBUG', 'event_push.log', 'ep_helpers')
+logger.propagate = False
 
 def get_aws_connection(aws_config):
 
@@ -98,10 +120,13 @@ def get_aws_connection(aws_config):
 		raise Exception("ARN not configured and credential not specified.")
 
 
-def s3_folder_contents(client, bucket, prefix=''):
+def s3_folder_contents(client, bucket, prefix):
 	# Can't use list_objects_v2 - no owner returned
-	logger.debug("Folder contents")
+	#logger.debug("Folder contents")
 	paginator = client.get_paginator('list_objects')
+	if len(prefix) > 0:
+		prefix = (prefix + '/').replace('//', '/')
+	#logger.debug('prefix = ' + prefix)
 	for result in paginator.paginate(Bucket=bucket, Prefix=prefix, Delimiter='/'):
 		# Submit a separate request for each folder to get its attributes. 
 		# head_object doesn't work here, not specific enough.
@@ -109,10 +134,24 @@ def s3_folder_contents(client, bucket, prefix=''):
 			folder_name = cp.get('Prefix')
 			folder_result = client.list_objects(Bucket=bucket, Prefix=folder_name, MaxKeys=1)
 			for content in folder_result.get('Contents'):
-				yield yield_s3_object(content, is_directory=True)
+				content = yield_s3_object(content, is_directory=True)
+				#logger.debug("Content ID1 = " + content["id"])
+				content["id"] = ('/' + bucket + '/' + content["id"]).replace('//', '/')
+				#logger.debug("Content ID2 = " + content["id"])
+				yield content
 
 		for content in result.get('Contents', []):
-			yield yield_s3_object(content)
+			#logger.debug(content)
+			content = yield_s3_object(content)
+			#logger.debug("Content ID3 = " + content["id"])
+			content["id"] = ('/' + bucket + '/' + content["id"]).replace('//', '/')
+			#content["id"] = '/' + bucket + '/' + content["id"]
+			#logger.debug("Content ID4 = " + content["id"])
+			
+			# We already retrieved the folders in the for-loop above.
+			logger.debug(content["id"][-1])
+			if not content["isDir"] and not content["id"][-1] == '/':
+				yield content
 		
 def yield_s3_object(content, is_directory=False):
 	timestamp = content.get('LastModified')
@@ -131,29 +170,34 @@ def yield_s3_object(content, is_directory=False):
 
 
 def get_aws_s3_directory(aws_config, bucket_folder_path):
-	logger.debug("Bucket = " + aws_config['default_s3_bucket'])
+	#logger.debug("Default bucket = " + aws_config['default_s3_bucket'])
 	logger.debug("Bucket folder path = " + bucket_folder_path)
-	folder_path = bucket_folder_path.split('/')
+	folder_path = bucket_folder_path.strip('/').split('/')
 	bucket_name = folder_path[0]
 	if bucket_name is None or len(bucket_name) == 0:
-		bucket_name = aws_config['default_s3_bucket']
-	if len(folder_path) > 1:
-		folder = '/'.join(folder_path[1:]).strip('/') + ('/')
+		logger.debug("No bucket specified")
+		folder_prefix = '/'
+		bucket_name = ''
+		#pass #bucket_name = aws_config['default_s3_bucket'] Default bucket code happens in rest_ep_dirlist
+	if len(folder_path) >= 1:
+		folder_prefix = '/'.join(folder_path[1:]).strip('/')
+	#elif len(folder_path) == 1:
+	#	folder = '/' + bucket_name
 	else:
-		folder = ''
-	logger.debug("Folder = " + folder)
+		folder_prefix = '/'
+	logger.debug("Folder Prefix = " + folder_prefix)
 
-	logger.debug("bucket name = " + str(bucket_name))
-	if bucket_name is None:
-		if 'default_s3_bucket' in list(aws_config.keys()):
-			t = aws_config['default_s3_bucket']
-			logger.debug(t)
-			if t is not None and len(t) > 0:
-				bucket_name = t
-			else:
-				bucket_name = ''
-		else:
-			bucket_name = ''
+	#logger.debug("bucket name = " + str(bucket_name))
+	#if bucket_name is None:
+		#if 'default_s3_bucket' in list(aws_config.keys()):
+			#t = aws_config['default_s3_bucket']
+			#logger.debug(t)
+			#if t is not None and len(t) > 0:
+			#	bucket_name = t
+			#else:
+			#	bucket_name = ''
+		#else:
+			#bucket_name = ''
 	try:
 		conn = get_aws_connection(aws_config)
 	except BaseException as e:
@@ -161,9 +205,10 @@ def get_aws_s3_directory(aws_config, bucket_folder_path):
 
 	file_list = []
 	if len(bucket_name) > 0:
+		logger.debug("Getting bucket contents for " + bucket_name)
 		# Get the directory listing within the bucket
 		# List files and folders
-		for e in s3_folder_contents(conn, bucket_name, folder):
+		for e in s3_folder_contents(conn, bucket_name, folder_prefix):
 			file_list.append( e )
 	else:
 		# Get the list of buckets
@@ -174,15 +219,12 @@ def get_aws_s3_directory(aws_config, bucket_folder_path):
 			timestamp = b['CreationDate']
 			timestamp = timestamp.timestamp() if timestamp is not None else None
 			file_list.append( {
-				"id": b['Name'],
+				"id": '/' + b['Name'],
 				"name": b['Name'],
 				"modDate": timestamp,
 				"isDir": True
 			} )
 	return file_list
-
-def get_box_directory(box_config, folder_path):
-	return []
 
 def get_sftp_directory(sftp_config, folder_path):
 	return []
@@ -243,3 +285,126 @@ def yield_smb_object(content, folder_path):
 		}
 	else:
 		return None
+
+def get_box_connection(target_config):
+	logger.debug(dir(JWTAuth))
+	# Check to see if we have credentials
+	valid_settings = []
+	for l in list(target_config.keys()):
+		if len(target_config[l]) > 0:
+			valid_settings.append(l) 
+	
+	logger.debug("Box connection 1")
+	if 'client_id' in valid_settings and 'client_secret' in valid_settings and 'enterprise_id' in valid_settings:
+		# A credential has been configured. Check for a cert.
+		if 'public_key_id' in valid_settings and 'private_key' in valid_settings and 'passphrase' in valid_settings:
+			# Certificate has been configured.
+
+			logger.debug("Box connection 2")
+			try:
+				enterprise_id = target_config['enterprise_id']
+				client_id = target_config['client_id']
+				client_secret = decrypt_with_secret(target_config['client_secret'])
+				public_key_id = target_config['public_key_id']
+				private_key = decrypt_with_secret(target_config['private_key']).replace('\\n', '\n')
+				passphrase = decrypt_with_secret(target_config['passphrase'])
+
+				box_authentication = {
+					"enterpriseID": enterprise_id,
+					"boxAppSettings": {
+						"clientID": client_id,
+						"clientSecret": client_secret,
+						"appAuth": {
+							"publicKeyID": public_key_id,
+							"privateKey": private_key,
+							"passphrase": passphrase
+						}
+					}
+				}
+				
+				logger.debug(box_authentication)
+				auth = JWTAuth.from_settings_dictionary(box_authentication)
+
+				logger.debug("Box connection 3")
+				if auth is not None:
+					# Use the credential to connect to Box
+					try:
+						return Client(auth)
+					except BoxAPIException as be:
+						raise Exception("Could not connect to Box: " + be.message)
+					except BaseException as e:
+						raise Exception("Could not connect to Box: " + repr(e))
+				else:
+					raise Exception("Box credential not configured.")
+			except BaseException as e: 
+				logger.debug(repr(e))
+				raise Exception("Could not find or decrypt the specified credential: " + repr(e))
+		else:
+			raise Exception("Could not find required certificate settings")
+	else:
+		raise Exception("Could not find required configuration settings")
+
+
+def get_box_directory(target_config, folder_path):
+	logger.debug("Getting Box connection")
+	# Let the exception pass through
+	client = get_box_connection(target_config)
+	logger.debug("Box connection OK")
+	if 'default_folder' in list(target_config.keys()) and (folder_path is None or len(folder_path) == 0):
+		folder_path = target_config['default_folder']
+	
+	try:
+		subfolders = folder_path.strip('/').split('/')
+		if '' in subfolders:
+			subfolders.remove('')
+		logger.debug("Folders: %s" % str(subfolders))
+		# Prepend the list with the root element
+		box_folder_object = client.root_folder().get()
+		# Walk the folder path until we find the target directory
+		
+		for i in range(len(subfolders)):
+			subfolder_name = subfolders[i]
+			logger.debug("Looking for folder: %s" % subfolder_name)
+			folder_contents = box_folder_object.get_items()
+			# If we are at the last entry, we already have the folder_contents assigned
+			if i != len(subfolders):
+				# Get the contents of the folder
+				# folder object is from the previous iteration
+				for item in folder_contents:
+					if item.type == 'folder':
+						#logger.debug('{0} {1} is named "{2}"'.format(item.type.capitalize(), item.id, item.name))
+						if subfolder_name == item.name:
+							logger.debug("Found a target folder ID: %s" % str(item.id))
+							box_folder_object = client.folder(folder_id=item.id)
+							break
+		
+
+		folder_contents = box_folder_object.get_items()
+		file_list = []
+		for item in folder_contents:
+			if item.item_status == "active":
+				entry = {
+					"box_id": item.id,
+					"id": ('/' + '/'.join(subfolders) + '/' + item.name).replace('//', '/'),
+					"name": item.name,
+					"owner": item.owned_by,
+					"modDate": item.content_modified_at,
+					"link": item.url,
+					"size": item.size,
+					"parentId": ('/' + '/'.join(subfolders)).replace('//', '/')
+				}
+				if item.type == 'folder':
+					entry["isDir"] = True
+				file_list.append(entry)
+		return file_list
+			
+			
+			
+			
+
+
+	except BoxAPIException as be:
+		raise Exception("Could not retrieve folder contents: " + be.message)
+	except BaseException as e:
+		raise Exception("Could not retrieve folder contents: " + repr(e))
+
