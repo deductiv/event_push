@@ -44,7 +44,7 @@ def get_directory_contents(config_file, config, query):
 			return get_smb_directory(config, query['folder'])
 			
 	except BaseException as e:
-		#logger.exception("Could not get directory listing: " + repr(e))
+		logger.exception("Could not get directory listing: " + repr(e))
 		raise Exception("Could not get directory listing: " + repr(e))
 
 class RemoteDirectoryListingHandler(PersistentServerConnectionApplication):
@@ -97,7 +97,7 @@ class RemoteDirectoryListingHandler(PersistentServerConnectionApplication):
 			except BaseException as e:
 				logger.exception("Could not get config: " + repr(e))
 
-			logger.debug('datasource_config = ' + str(datasource_config))
+			#logger.debug('datasource_config = ' + str(datasource_config))
 			if datasource_config is not None:
 				# Set the defaults
 				if 'folder' not in list(query.keys()) or len(query['folder']) == 0:

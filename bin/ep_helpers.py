@@ -3,7 +3,7 @@ import random
 import sys, os, platform
 import re
 import socket
-#from datetime import datetime, timezone
+from datetime import datetime
 from deductiv_helpers import setup_logger, str2bool, decrypt_with_secret
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
@@ -287,20 +287,17 @@ def yield_smb_object(content, folder_path):
 		return None
 
 def get_box_connection(target_config):
-	logger.debug(dir(JWTAuth))
 	# Check to see if we have credentials
 	valid_settings = []
 	for l in list(target_config.keys()):
 		if len(target_config[l]) > 0:
 			valid_settings.append(l) 
 	
-	logger.debug("Box connection 1")
 	if 'client_id' in valid_settings and 'client_secret' in valid_settings and 'enterprise_id' in valid_settings:
 		# A credential has been configured. Check for a cert.
 		if 'public_key_id' in valid_settings and 'private_key' in valid_settings and 'passphrase' in valid_settings:
 			# Certificate has been configured.
 
-			logger.debug("Box connection 2")
 			try:
 				enterprise_id = target_config['enterprise_id']
 				client_id = target_config['client_id']
@@ -322,10 +319,8 @@ def get_box_connection(target_config):
 					}
 				}
 				
-				logger.debug(box_authentication)
 				auth = JWTAuth.from_settings_dictionary(box_authentication)
 
-				logger.debug("Box connection 3")
 				if auth is not None:
 					# Use the credential to connect to Box
 					try:
@@ -346,61 +341,88 @@ def get_box_connection(target_config):
 
 
 def get_box_directory(target_config, folder_path):
-	logger.debug("Getting Box connection")
 	# Let the exception pass through
 	client = get_box_connection(target_config)
-	logger.debug("Box connection OK")
 	if 'default_folder' in list(target_config.keys()) and (folder_path is None or len(folder_path) == 0):
 		folder_path = target_config['default_folder']
 	
 	try:
-		subfolders = folder_path.strip('/').split('/')
-		if '' in subfolders:
-			subfolders.remove('')
-		logger.debug("Folders: %s" % str(subfolders))
-		# Prepend the list with the root element
-		box_folder_object = client.root_folder().get()
-		# Walk the folder path until we find the target directory
+		if re.match(r'^\d+\/$', folder_path):
+			# Folder path is actually a folder ID
+			box_folder_object = client.folder(folder_id=folder_path.replace('/', '')).get()
+		else:
+			# Folder path is actually a folder path
+			subfolders = folder_path.strip('/').split('/')
+			if '' in subfolders:
+				subfolders.remove('')
+			logger.debug("Folders: %s" % str(subfolders))
+			# Prepend the list with the root element
+			box_folder_object = client.root_folder().get()
+			# Walk the folder path until we find the target directory
+			for i in range(len(subfolders)):
+				subfolder_name = subfolders[i]
+				logger.debug("Looking for folder: %s" % subfolder_name)
+				folder_contents = box_folder_object.get_items()
+				# If we are at the last entry, we already have the folder_contents assigned
+				if i != len(subfolders):
+					# Get the contents of the folder
+					# folder object is from the previous iteration
+					for item in folder_contents:
+						if item.type == 'folder':
+							#logger.debug('{0} {1} is named "{2}"'.format(item.type.capitalize(), item.id, item.name))
+							if subfolder_name == item.name:
+								logger.debug("Found a target folder ID: %s" % str(item.id))
+								box_folder_object = client.folder(folder_id=item.id)
+								break
 		
-		for i in range(len(subfolders)):
-			subfolder_name = subfolders[i]
-			logger.debug("Looking for folder: %s" % subfolder_name)
-			folder_contents = box_folder_object.get_items()
-			# If we are at the last entry, we already have the folder_contents assigned
-			if i != len(subfolders):
-				# Get the contents of the folder
-				# folder object is from the previous iteration
-				for item in folder_contents:
-					if item.type == 'folder':
-						#logger.debug('{0} {1} is named "{2}"'.format(item.type.capitalize(), item.id, item.name))
-						if subfolder_name == item.name:
-							logger.debug("Found a target folder ID: %s" % str(item.id))
-							box_folder_object = client.folder(folder_id=item.id)
-							break
-		
-
-		folder_contents = box_folder_object.get_items()
+		fields = ["id", "name", "owner", "content_modified_at", "item_collection", "owner", "size", "parent", "status"]
+		folder_data = box_folder_object.get_items(fields=fields)
+		logger.debug(folder_data.__dict__)
 		file_list = []
-		for item in folder_contents:
-			if item.item_status == "active":
+		logger.debug("test1")
+		#if hasattr(folder_data.item_collection, "item_collection"):
+		#	if hasattr(folder_data.item_collection, "entries"):
+		#		logger.debug("Has entries")
+		for item in folder_data:
+			#logger.debug(item.name)
+			#if item.type == 'file':
+				#logger.debug(item.status)
+			try:
+				#if item.item_status == "active":
 				entry = {
-					"box_id": item.id,
-					"id": ('/' + '/'.join(subfolders) + '/' + item.name).replace('//', '/'),
-					"name": item.name,
-					"owner": item.owned_by,
-					"modDate": item.content_modified_at,
-					"link": item.url,
-					"size": item.size,
-					"parentId": ('/' + '/'.join(subfolders)).replace('//', '/')
+					#"box_id": item.id,
+					#"id": ('/' + '/'.join(subfolders) + '/' + item.name).replace('//', '/'),
+					"id": item.id,
+					"name": item.name
+					#"parentId": ('/' + '/'.join(subfolders)).replace('//', '/')
 				}
 				if item.type == 'folder':
 					entry["isDir"] = True
+					#f = client.folder(item.id).get()
+				else:
+					entry["isDir"] = False
+					#f = client.file(item.id).get()
+				#entry["link"] = f.url
+				if hasattr(item, "owned_by"):
+					entry["owner"] = item.owned_by.login
+				entry_ts = item.content_modified_at
+				# Remove the last colon (e.g. from -04:00)
+				entry_ts = entry_ts[0:entry_ts.rindex(':')]+entry_ts[entry_ts.rindex(':')+1:]
+				entry["modDate"] = datetime.strptime(entry_ts, '%Y-%m-%dT%H:%M:%S%z').timestamp()
+				entry["size"] = item.size
+				if hasattr(item, "parent"):
+					if hasattr(item.parent, "id"):
+						entry["parentId"] = item.parent.id
+				# Folder -or- active file
+				#if not hasattr(item, "status") or (hasattr(item, "status") and item.status == "active"):
+				logger.debug(entry)
 				file_list.append(entry)
+
+			except BaseException as e:
+				logger.debug("Exception: " + repr(e))
+
+		logger.debug("done")
 		return file_list
-			
-			
-			
-			
 
 
 	except BoxAPIException as be:
