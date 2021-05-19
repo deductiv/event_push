@@ -748,6 +748,10 @@ class App extends React.Component {
 				//console.log("Showing folder data for: " + config_file + "\n" + alias + "\n"  + container_name + "\n"  + folder);
 				//console.log("Loading: " + JSON.stringify(this.state.loading));
 				//console.log("Setting state from show_folder_contents (first)");
+				let old_chain = [...this.state.folder_chain];
+				let old_files = [...this.state.file_list];
+				console.log("Old chain = " + JSON.stringify(old_chain));
+				console.log("Old files = " + JSON.stringify(old_files));
 				this.setState({loading: true, show_file_browser: true}, 
 					() => { // then
 						let url='event_push_dirlist';
@@ -767,20 +771,55 @@ class App extends React.Component {
 						
 						// If the query folder is blank, use the default container name in the chain
 						// else, use what's in the folder setting only
+						console.log('Container Name = ' + container_name)
+						console.log('Folder = ' + folder)
 
 						if (folder !== undefined && folder !== null && folder.length > 0) {
-							params["folder"] = folder
+							params["folder"] = folder;
 							let chain_path = '';
-
-							for (let f of folder.replace(/^\/+|\/+$/, "").split('/')) {
-								if ( f.length > 0 ) {
-									chain_path = chain_path + '/' + f;
-									chain.push({
-										id: chain_path,
-										name: f,
-										isDir: true
-									})
-									console.log("f = " + f);
+							if ( folder.match('^[0-9]+\/$')) {
+								// Treat the folder like an ID
+								chain = [];
+								folder = folder.replace('/', '');
+								console.log("Using folder argument as ID");
+								// Is this ID already in the previously used chain? User opted to go backwards
+								console.log("Old chain: " + JSON.stringify(old_chain));
+								if ( old_chain.length > 0 ) {
+									for ( let chain_entry of old_chain ) {
+										chain.push(chain_entry);
+										// Break if the just-added ID is the folder specified
+										if ( chain_entry.id == folder ) {
+											break;
+										}
+									}
+									console.log("New chain 1: " + JSON.stringify(chain));
+									if ( old_chain.length == chain.length ) {
+										// We made it through our old chain without finding the selection
+										// Must have been selected from the list shown
+										// Get the object from the file list and append it to the folder chain
+										for ( let old_file of old_files ) {
+											console.log(folder + " / " + old_file.id);
+											if (old_file.id == folder) {
+												chain.push(old_file);
+												break;
+											}
+										}
+										console.log("New chain 2: " + JSON.stringify(chain));
+									}
+								}
+							} else {
+								console.log("Using folder argument as path");
+								// Treat the folder argument like a path
+								for (let f of folder.replace(/^\/+|\/+$/, "").split('/')) {
+									if ( f.length > 0 ) {
+										chain_path = chain_path + '/' + f;
+										chain.push({
+											id: chain_path,
+											name: f,
+											isDir: true
+										})
+										console.log("f = " + f);
+									}
 								}
 							}
 						} else if ( (folder === undefined || folder === null || folder.length == 0) && container_name != '/' ) {
@@ -877,7 +916,7 @@ class App extends React.Component {
 						actions={ (browsable && [{
 							  icon: tableIcons.Open,
 							  tooltip: 'Browse',
-							  onClick: (event,rowData) => { this.show_folder_contents(config, rowData.alias, rowData.share_name, rowData.default_folder) }
+							  onClick: (event,rowData) => { this.show_folder_contents(config, rowData.alias, rowData.share_name || rowData.default_s3_bucket, rowData.default_folder) }
 						}])}
 						options={table_options}
 						className={"actionicons-" + action_columns}

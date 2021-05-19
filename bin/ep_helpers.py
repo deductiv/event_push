@@ -391,8 +391,8 @@ def get_box_directory(target_config, folder_path):
 				#if item.item_status == "active":
 				entry = {
 					#"box_id": item.id,
-					#"id": ('/' + '/'.join(subfolders) + '/' + item.name).replace('//', '/'),
-					"id": item.id,
+					"id": ('/' + '/'.join(subfolders) + '/' + item.name).replace('//', '/'),
+					#"id": item.id,
 					"name": item.name
 					#"parentId": ('/' + '/'.join(subfolders)).replace('//', '/')
 				}
