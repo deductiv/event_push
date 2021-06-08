@@ -28,7 +28,8 @@ standard_library.install_aliases()
 import sys, os, platform
 import time
 import random
-from deductiv_helpers import setup_logger, eprint, decrypt_with_secret, get_config_from_alias, exit_error, replace_object_tokens
+from deductiv_helpers import setup_logger, eprint, decrypt_with_secret, get_config_from_alias, exit_error, replace_object_tokens, recover_parameters
+from ep_helpers import get_sftp_connection
 
 # Add lib subfolders to import path
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
@@ -139,6 +140,7 @@ class epsftp(ReportingCommand):
 			raise Exception("Could not create logger: " + repr(e))
 
 		logger.info('SFTP Event Push search command initiated')
+		logger.debug('search_ep_sftp command: %s', self)  # logs command line
 
 		# Enumerate proxy settings
 		http_proxy = os.environ.get('HTTP_PROXY')
@@ -156,7 +158,10 @@ class epsftp(ReportingCommand):
 		app = self._metadata.searchinfo.app
 		user = self._metadata.searchinfo.username
 		dispatch = self._metadata.searchinfo.dispatch_dir
+		os.chdir(dispatch)
 		
+		if self.target is None and 'target=' in str(self):
+			recover_parameters(self)
 		# Replace all tokenized parameter strings
 		replace_object_tokens(self)
 
@@ -166,11 +171,17 @@ class epsftp(ReportingCommand):
 		try:
 			target_config = get_config_from_alias(cmd_config, self.target)
 			if target_config is None:
-				exit_error(logger, "Unable to find target configuration.", 100937)
+				exit_error(logger, "Unable to find target configuration (%s)." % self.target, 100937)
 			#logger.debug("Target configuration: " + str(target_config))
 		except BaseException as e:
 			exit_error(logger, "Error reading target server configuration: " + repr(e), 124812)
 
+		try:
+			sftp = get_sftp_connection(target_config)
+		except BaseException as e:
+			exit_error(logger, repr(e), 912934)
+		
+		'''
 		# Check to see if we have credentials
 		valid_settings = []
 		for l in list(target_config.keys()):
@@ -210,7 +221,8 @@ class epsftp(ReportingCommand):
 				exit_error(logger, "Could not find or decrypt the specified credential: " + repr(e), 230494)
 		else:
 			exit_error(logger, "Could not find required configuration settings", 2823874)
-		
+		'''
+
 		file_extensions = {
 			'raw':  '.log',
 			'kv':   '.log',

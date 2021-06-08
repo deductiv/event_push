@@ -3,6 +3,7 @@ import random
 import sys, os, platform
 import re
 import socket
+import stat
 from datetime import datetime
 from deductiv_helpers import setup_logger, str2bool, decrypt_with_secret
 
@@ -37,13 +38,17 @@ import boto3
 from botocore.config import Config
 # PySMB
 from smb.SMBConnection import SMBConnection
+#PySFTP
+import pysftp
 
 # Enumerate proxy settings
 http_proxy = os.environ.get('HTTP_PROXY')
 https_proxy = os.environ.get('HTTPS_PROXY')
 proxy_exceptions = os.environ.get('NO_PROXY')
 
-logger = setup_logger('DEBUG', 'event_push.log', 'ep_helpers')
+random_number = str(random.randint(10000, 100000))
+
+logger = setup_logger('INFO', 'event_push.log', 'ep_helpers')
 logger.propagate = False
 
 def get_aws_connection(aws_config):
@@ -75,7 +80,7 @@ def get_aws_connection(aws_config):
 	if not use_arn and aws_config['secret_key'][:1] == '$':
 		aws_config['secret_key'] = decrypt_with_secret(aws_config['secret_key'])
 
-	random_number = str(random.randint(10000, 100000))
+	#random_number = str(random.randint(10000, 100000))
 	if use_arn:
 		# Use the current/caller identity ARN from the EC2 instance to connect to S3
 		#logger.debug("Using ARN to connect")
@@ -135,21 +140,14 @@ def s3_folder_contents(client, bucket, prefix):
 			folder_result = client.list_objects(Bucket=bucket, Prefix=folder_name, MaxKeys=1)
 			for content in folder_result.get('Contents'):
 				content = yield_s3_object(content, is_directory=True)
-				#logger.debug("Content ID1 = " + content["id"])
 				content["id"] = ('/' + bucket + '/' + content["id"]).replace('//', '/')
-				#logger.debug("Content ID2 = " + content["id"])
 				yield content
 
 		for content in result.get('Contents', []):
-			#logger.debug(content)
 			content = yield_s3_object(content)
-			#logger.debug("Content ID3 = " + content["id"])
 			content["id"] = ('/' + bucket + '/' + content["id"]).replace('//', '/')
-			#content["id"] = '/' + bucket + '/' + content["id"]
-			#logger.debug("Content ID4 = " + content["id"])
-			
 			# We already retrieved the folders in the for-loop above.
-			logger.debug(content["id"][-1])
+			#logger.debug(content["id"][-1])
 			if not content["isDir"] and not content["id"][-1] == '/':
 				yield content
 		
@@ -226,8 +224,77 @@ def get_aws_s3_directory(aws_config, bucket_folder_path):
 			} )
 	return file_list
 
+
+def get_sftp_connection(target_config):
+	# Check to see if we have credentials
+	valid_settings = []
+	for l in list(target_config.keys()):
+		if target_config[l][0] == '$':
+			target_config[l] = decrypt_with_secret(target_config[l]).strip()
+		if len(target_config[l]) > 0:
+			#logger.debug("l.strip() = [" + target_config[l].strip() + "]")
+			valid_settings.append(l) 
+	if 'host' in valid_settings and 'port' in valid_settings:
+		# A target has been configured. Check for credentials.
+		# Disable SSH host checking (fix later - set as an option? !!!)
+		cnopts = pysftp.CnOpts()
+		cnopts.hostkeys = None
+		try:
+			if 'username' in valid_settings and 'password' in valid_settings:
+				try:
+					sftp = pysftp.Connection(host=target_config['host'], username=target_config['username'], password=target_config['password'], cnopts=cnopts)
+				except BaseException as e:
+					exit_error(logger, "Unable to setup SFTP connection with password: " + repr(e), 921982)
+			elif 'username' in valid_settings and 'private_key' in valid_settings:
+				# Write the decrypted private key to a temporary file
+				temp_dir = os.getcwd()
+				key_file = os.path.join(temp_dir, 'epsftp_private_key_' + random_number)
+				private_key = target_config['private_key'].replace('\\n', '\n')
+				with open(key_file, "w") as f:
+					f.write(private_key)
+					f.close()
+				try:
+					if 'passphrase' in valid_settings:
+						sftp = pysftp.Connection(host=target_config['host'], private_key=key_file, private_key_pass=target_config['passphrase'], cnopts=cnopts)
+					else:
+						sftp = pysftp.Connection(host=target_config['host'], username=target_config['username'], private_key=key_file, cnopts=cnopts)
+					return sftp
+				except BaseException as e:
+					raise Exception("Unable to setup SFTP connection with private key: " + repr(e))
+			else:
+				raise Exception("Required SFTP settings not found")
+		except BaseException as e: 
+			raise Exception("Could not find or decrypt the specified SFTP credential: " + repr(e))
+	else:
+		raise Exception("Could not find required SFTP configuration settings")
+		
 def get_sftp_directory(sftp_config, folder_path):
-	return []
+	sftp = get_sftp_connection(sftp_config)
+	dirlist = sftp.listdir_attr(folder_path)
+	file_list = []
+	for f in dirlist:
+		entry = yield_sftp_object(f, folder_path)
+		if entry is not None:
+			file_list.append(entry)
+	# Sort the listing
+	# Directories first then filename
+	file_list.sort(key=lambda x: (x["isDir"], x["name"]))
+	return file_list
+
+def yield_sftp_object(content, folder_path):
+	folder_path = folder_path.rstrip('/').rstrip('\\')
+	if content.filename not in [u'.', u'..']:
+		return {
+			"id": folder_path + '/' + content.filename,
+			"name": content.filename,
+			"isHidden": True if content.filename[0] == '.' else False,
+			"size": content.st_size,
+			"modDate": content.st_mtime,
+			"parentId": folder_path,
+			"isDir": True if stat.S_ISDIR(content.st_mode) or (stat.S_ISLNK(content.st_mode) and stat.S_IMODE(content.st_mode) & 1) else False
+		}
+	else:
+		return None
 
 def get_smb_directory(smb_config, folder_path = '/'):
 	# Get the local client hostname
@@ -379,7 +446,7 @@ def get_box_directory(target_config, folder_path):
 		folder_data = box_folder_object.get_items(fields=fields)
 		logger.debug(folder_data.__dict__)
 		file_list = []
-		logger.debug("test1")
+		#logger.debug("test1")
 		#if hasattr(folder_data.item_collection, "item_collection"):
 		#	if hasattr(folder_data.item_collection, "entries"):
 		#		logger.debug("Has entries")

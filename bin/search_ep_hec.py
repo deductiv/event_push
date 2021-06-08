@@ -39,7 +39,7 @@ import splunklib.client as client
 import splunklib.results as results
 from splunklib.searchcommands import StreamingCommand, dispatch, Configuration, Option, validators
 from CsvResultParser import *
-from deductiv_helpers import setup_logger, eprint, str2bool, get_config_from_alias, exit_error, port_is_open, replace_object_tokens
+from deductiv_helpers import setup_logger, eprint, str2bool, get_config_from_alias, exit_error, port_is_open, replace_object_tokens, recover_parameters
 
 # Use the library from George Starcher for HTTP Event Collector
 # Updated to support Python3
@@ -118,14 +118,13 @@ class ephec(StreamingCommand):
 			raise Exception("Could not create logger: " + repr(e))
 
 		logger.info('HEC Event Push search command initiated')
+		logger.debug('search_ep_hec command: %s', self)  # logs command line
 
 		# Set defaults
 		if self.host is None:
 			self.host = "$host$"
 		# Get the default values used for data originating from this machine
 		inputs_host = cli.getConfStanza('inputs','splunktcp')["host"]
-
-		logger.debug('search_ep_hec command: %s', self)  # logs command line
 
 		if self.source is None:
 			self.source = "$source$"
@@ -153,13 +152,15 @@ class ephec(StreamingCommand):
 		app = searchinfo.app
 		user = searchinfo.username
 		
+		if self.target is None and 'target=' in str(self):
+			recover_parameters(self)
 		# Replace all tokenized parameter strings
 		replace_object_tokens(self)
 		
 		try:
 			target_config = get_config_from_alias(cmd_config, self.target)
 			if target_config is None:
-				exit_error(logger, "Unable to find target configuration.", 100937)
+				exit_error(logger, "Unable to find target configuration (%s)." % self.target, 100937)
 
 			logger.debug("Target configuration: " + str(target_config))
 			hec_token = target_config['token']

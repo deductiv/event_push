@@ -26,6 +26,9 @@ config = cli.getConfStanza('ep_general','settings')
 facility = os.path.basename(__file__)
 facility = os.path.splitext(facility)[0]
 logger = setup_logger(config["log_level"], 'event_push.log', facility)
+temp_dir = os.path.join(os.environ.get('SPLUNK_HOME'), 'etc','users','splunk-system-user','.eptemp')
+os.makedirs(temp_dir, exist_ok=True)
+os.chdir(temp_dir)
 
 def return_error(error_text):
 	return {'error': error_text, 

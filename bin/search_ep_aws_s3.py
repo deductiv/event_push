@@ -29,7 +29,7 @@ import logging
 import sys, os, platform
 import random
 import re
-from deductiv_helpers import setup_logger, get_config_from_alias, replace_keywords, exit_error, replace_object_tokens, str2bool
+from deductiv_helpers import setup_logger, get_config_from_alias, replace_keywords, exit_error, replace_object_tokens, recover_parameters, str2bool
 
 # Add lib folders to import path
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
@@ -127,19 +127,27 @@ class epawss3(ReportingCommand):
 
 		logger.info('AWS S3 Event Push search command initiated')
 		logger.debug("Configuration: " + str(cmd_config))
-		logger.debug('search_ep_hec command: %s', self)  # logs command line
+		logger.debug('search_ep_awss3 command: %s', self)  # logs command line
 
 		# Enumerate settings
 		app = self._metadata.searchinfo.app
 		user = self._metadata.searchinfo.username
 		dispatch = self._metadata.searchinfo.dispatch_dir
 
+		if self.target is None and 'target=' in str(self):
+			recover_parameters(self)
 		# Replace all tokenized parameter strings
 		replace_object_tokens(self)
 
 		# Build the configuration
-		aws_config = get_config_from_alias(cmd_config, self.target)
-
+		try:
+			aws_config = get_config_from_alias(cmd_config, self.target)
+			if aws_config is None:
+				exit_error(logger, "Unable to find target configuration (%s)." % self.target, 100937)
+			logger.debug("Target configuration: " + str(aws_config))
+		except BaseException as e:
+			exit_error(logger, "Error reading target server configuration: " + repr(e), 124812)
+		
 		if self.bucket is None:
 			if 'default_s3_bucket' in list(aws_config.keys()):
 				t = aws_config['default_s3_bucket']
@@ -199,54 +207,7 @@ class epawss3(ReportingCommand):
 			s3 = get_aws_connection(aws_config)
 		except BaseException as e:
 			exit_error(logger, "Could not connect to AWS: " + repr(e), 741423)
-			
-		'''
-		if use_arn:
-			# Use the current/caller identity ARN from the EC2 instance to connect to S3
-			logger.debug("Using ARN to connect")
-			try:
-				
-				account_arn_current = boto3.client('sts').get_caller_identity().get('Arn')
-				# arn:aws:sts::800000000000:assumed-role/SplunkInstance_ReadOnly/...
-				m = re.search(r'arn:aws:sts::(\d+):[^\/]+\/([^\/]+)', account_arn_current)
-				aws_account = m.group(1)
-				aws_role = m.group(2)
-
-				sts_client = boto3.client('sts')
-				role_arn = "arn:aws:iam::" + aws_account + ":role/" + aws_role
-				assumed_role_object = sts_client.assume_role(
-					RoleArn=role_arn,
-					RoleSessionName="AssumeRoleSession" + random_number
-				)
-
-				credentials = assumed_role_object['Credentials']
-				s3 = boto3.client(
-					's3',
-					aws_access_key_id=credentials['AccessKeyId'],
-					aws_secret_access_key=credentials['SecretAccessKey'],
-					aws_session_token=credentials['SessionToken'],
-				)
-				logger.debug("Connected using assumed role %s", role_arn)
-			except BaseException as e:
-
-				exit_error(logger, "Could not connect to S3. Failed to assume role: " + repr(e), 7)
-
-		elif aws_config['access_key_id'] is not None and aws_config['secret_key'] is not None:
-			# Use the credential to connect to S3
-			try:
-				s3 = boto3.client(
-					's3',
-					aws_access_key_id=aws_config['access_key_id'],
-					aws_secret_access_key=aws_config['secret_key'],
-					config=boto_config,
-					endpoint_url=endpoint_url)
-				logger.debug("Connected using OAuth credential")
-			except BaseException as e:
-				exit_error(logger, "Could not connect to S3 using OAuth keys: " + repr(e), 6)
-		else:
-			exit_error(logger, "ARN not configured and credential not specified.", 8)
-		'''
-
+		
 		event_counter = 0
 		# Write the output file to disk in the dispatch folder
 		logger.debug("Writing events to file %s in %s format. Compress=%s\n\tfields=%s", local_output_file, self.outputformat, self.compress, self.fields)

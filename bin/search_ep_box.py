@@ -28,7 +28,7 @@ standard_library.install_aliases()
 import sys, os, platform
 import time
 import random
-from deductiv_helpers import setup_logger, eprint, get_config_from_alias, replace_keywords, exit_error, replace_object_tokens
+from deductiv_helpers import setup_logger, eprint, get_config_from_alias, replace_keywords, exit_error, replace_object_tokens, recover_parameters
 
 # Add lib subfolders to import path
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
@@ -140,6 +140,7 @@ class epbox(ReportingCommand):
 			raise Exception("Could not create logger: " + repr(e))
 
 		logger.info('Box Event Push search command initiated')
+		logger.debug('search_ep_box command: %s', self)  # logs command line
 
 		# Enumerate proxy settings
 		http_proxy = os.environ.get('HTTP_PROXY')
@@ -158,13 +159,16 @@ class epbox(ReportingCommand):
 		user = self._metadata.searchinfo.username
 		dispatch = self._metadata.searchinfo.dispatch_dir
 
+		if self.target is None and 'target=' in str(self):
+			recover_parameters(self)
 		# Replace all tokenized parameter strings
 		replace_object_tokens(self)
 
+		logger.debug('2')
 		try:
 			target_config = get_config_from_alias(cmd_config, self.target)
 			if target_config is None:
-				exit_error(logger, "Unable to find target configuration.", 100937)
+				exit_error(logger, "Unable to find target configuration (%s)." % self.target, 100937)
 			logger.debug("Target configuration: " + str(target_config))
 		except BaseException as e:
 			exit_error(logger, "Error reading target server configuration: " + repr(e), 124812)

@@ -12,6 +12,7 @@ standard_library.install_aliases()
 import sys, os
 import time, datetime
 import json
+import fnmatch
 import gzip
 import logging
 from collections import OrderedDict
@@ -49,9 +50,12 @@ def write_events_to_file(events, fields, local_output, outputformat, compression
 		# Filter the fields if fields= is supplied
 		if fields is not None:
 			event_keys = []
+			if type(fields) == str:
+				fields = [fields]
 			for k in list(event.keys()):
-				if k in fields:
-					event_keys.append(k)
+				for f in fields:
+					if k == f or fnmatch.fnmatch(k, f):
+						event_keys.append(k)
 		else:
 			event_keys = list(event.keys())
 

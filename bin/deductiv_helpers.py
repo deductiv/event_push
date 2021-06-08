@@ -358,3 +358,13 @@ def replace_string_tokens(tokens, v):
 	#if b != v:
 	#	eprint(b + ' -> ' + v)
 	return v
+
+def recover_parameters(obj):
+	args = sys.argv[2:]
+	for a in args:
+		key = a[0:a.index('=')].strip('"')
+		value = a[a.index('=')+1:].strip('"')
+		if value != '__default__':
+			setattr(obj, key, value)
+		else:
+			setattr(obj, key, None)
