@@ -30,6 +30,7 @@ import configparser
 import time
 import datetime
 import socket
+import json
 
 # Add lib folders to import path
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
@@ -40,6 +41,7 @@ from splunksecrets import decrypt	# pylint: disable=import-error
 
 # pylint: disable=import-error
 import splunk.entity as en 
+from splunk.rest import simpleRequest
 
 def get_credentials(app, session_key):
 	try:
@@ -159,6 +161,18 @@ def get_config_from_alias(config_data, stanza_guid_alias = None):
 		else:
 			default_target_config = {}
 
+		# See if a GUID was provided explicitly (used by alert actions)
+		# 8-4-4-4-12 format 
+		logger = setup_logging('event_push')
+		try:
+			if stanza_guid_alias is not None:
+				logger.debug(type(stanza_guid_alias))
+				if re.match(r'[({]?[a-f0-9]{8}[-]?([a-f0-9]{4}[-]?){3}[a-f0-9]{12}[})]?', stanza_guid_alias, flags=re.IGNORECASE):
+					logger.debug("Using guid " + stanza_guid_alias)
+					return merge_two_dicts(default_target_config, config_data[stanza_guid_alias])
+		except BaseException as e:
+			logger.exception("Exception caught: " + repr(e))
+
 		# Loop through all GUID stanzas for the specified alias
 		for guid in list(config_data.keys()):
 			if guid != 'default':
@@ -221,3 +235,123 @@ def port_is_open(ip, port):
 
 if __name__ == "__main__":
 	pass
+
+def get_tokens(searchinfo):
+	tokens = {}
+	# Get the host of the splunkd service
+	splunkd_host = searchinfo.splunkd_uri[searchinfo.splunkd_uri.index("//")+2:searchinfo.splunkd_uri.rindex(":")]
+	splunkd_port = searchinfo.splunkd_uri[searchinfo.splunkd_uri.rindex(":")+1:]
+
+	tokens = {
+		'splunkd_host': splunkd_host,
+		'splunkd_port': splunkd_port
+	}
+
+	# Get the search job attributes
+	if searchinfo.sid: 
+		job_uri = en.buildEndpoint(
+			[
+				'search', 
+				'jobs', 
+				searchinfo.sid
+			], 
+			namespace=searchinfo.app, 
+			owner=searchinfo.owner
+		)
+		job_response = simpleRequest(job_uri, method='GET', getargs={'output_mode':'json'}, sessionKey=searchinfo.session_key)[1]
+		search_job         = json.loads(job_response)
+		job_content        = search_job['entry'][0]['content']
+	else:
+		job_content        = {}
+
+	for key, value in list(job_content.items()):
+		if value is not None:
+			tokens['job.' + key] = json.dumps(value, default=lambda o: o.__dict__)
+	#eprint("job_content=" + json.dumps(job_content))
+
+	if 'label' in list(job_content.keys()):
+		tokens['name'] = job_content['label']
+
+		# Get the saved search properties
+		entityClass = ['saved', 'searches']
+		uri = en.buildEndpoint(
+			entityClass,
+			namespace=searchinfo.app, 
+			owner=searchinfo.owner
+		)
+
+		responseBody = simpleRequest(uri, method='GET', getargs={'output_mode':'json'}, sessionKey=searchinfo.session_key)[1]
+
+		saved_search = json.loads(responseBody)
+		ss_content = saved_search['entry'][0]['content']
+		#eprint("SSContent=" + json.dumps(ss_content))
+
+		for key, value in list(ss_content.items()):
+			if not key.startswith('display.'):
+				if value is not None:
+					tokens[key] = json.dumps(value, default=lambda o: o.__dict__)
+
+	tokens['owner'] = searchinfo.owner
+	tokens['app'] = searchinfo.app
+	#tokens['results_link'] = 'http://127.0.0.1:8000/en-US/app/search/search?sid=1622650709.10799'
+	
+	# Parse all of the nested objects (recursive function)
+	for t, tv in list(tokens.items()):
+		tokens = merge_two_dicts(tokens, parse_nested_json(t, tv))
+	
+	#for t, tv in list(tokens.items()):
+	#	if type(tv) == str:
+	#		eprint(t + '=' + tv)
+	#	else:
+	#		eprint(t + "(type " + str(type(tv)) + ") = " + str(tv))
+	return tokens
+
+def parse_nested_json(parent_name, j):
+	retval = {}
+	try:
+		if j is not None:
+			sub_tokens = json.loads(j)
+			if sub_tokens is not None:
+				for u, uv in list(sub_tokens.items()):
+					if type(uv) == dict:
+						retval = merge_two_dicts(retval, parse_nested_json(parent_name + '.' + u, json.dumps(uv)))
+					else:
+						retval[(parent_name + '.' + u).replace('..', '.')] = uv
+						#eprint('added subtoken ' + (parent_name + '.' + u).replace('..', '.') + '=' + str(uv))
+		return retval
+	except ValueError:
+		return {parent_name: j}
+	except AttributeError:
+		return {parent_name: j}
+	except BaseException as e:
+		eprint("Exception parsing JSON subtoken: " + repr(e))
+	
+def replace_object_tokens(o):
+	tokens = get_tokens(o._metadata.searchinfo)
+	for var in vars(o):
+		val = getattr(o, var)
+		try:
+			if '$' in val:
+				try:
+					setattr(o, var, replace_string_tokens(tokens, val))
+				except BaseException as e:
+					eprint("Error replacing token text for variable %s value %s: %s" % (var, val, repr(e)))
+		except:
+			# Probably an index out of range error
+			pass
+	#return o
+
+	#for t, v in list(tokens.items()):
+	#	param = param.replace('$'+t+'$', v)
+	#return param
+
+def replace_string_tokens(tokens, v):
+	b = v
+	# Replace all tokenized strings
+	for t, tv in list(tokens.items()):
+		if tv is not None:
+			v = v.replace('$'+t+'$', str(tv))
+	# Print the result if the value changed
+	#if b != v:
+	#	eprint(b + ' -> ' + v)
+	return v

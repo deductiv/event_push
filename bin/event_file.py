@@ -44,7 +44,7 @@ def write_events_to_file(events, fields, local_output, outputformat, compression
 	for event in events:
 		if first_field is None:
 			first_field = list(event.keys())[0]
-			dhelp.eprint('First field = ' + first_field)
+			#dhelp.eprint('First field = ' + first_field)
 		# Get the fields list for the event
 		# Filter the fields if fields= is supplied
 		if fields is not None:

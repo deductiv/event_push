@@ -29,7 +29,7 @@ import logging
 import sys, os, platform
 import random
 import re
-from deductiv_helpers import setup_logger, eprint, decrypt_with_secret, get_config_from_alias, replace_keywords, exit_error, str2bool
+from deductiv_helpers import setup_logger, get_config_from_alias, replace_keywords, exit_error, replace_object_tokens, str2bool
 
 # Add lib folders to import path
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
@@ -127,14 +127,19 @@ class epawss3(ReportingCommand):
 
 		logger.info('AWS S3 Event Push search command initiated')
 		logger.debug("Configuration: " + str(cmd_config))
-		
+		logger.debug('search_ep_hec command: %s', self)  # logs command line
+
 		# Enumerate settings
 		app = self._metadata.searchinfo.app
 		user = self._metadata.searchinfo.username
 		dispatch = self._metadata.searchinfo.dispatch_dir
 
+		# Replace all tokenized parameter strings
+		replace_object_tokens(self)
+
 		# Build the configuration
 		aws_config = get_config_from_alias(cmd_config, self.target)
+
 		'''
 		# Enumerate proxy settings
 		http_proxy = os.environ.get('HTTP_PROXY')
@@ -209,7 +214,7 @@ class epawss3(ReportingCommand):
 			logger.debug('Compression: %s', self.compress)
 		else:
 			try:
-				self.compress = aws_config['compress']
+				self.compress = str2bool(aws_config['compress'])
 			except:
 				self.compress = False
 		

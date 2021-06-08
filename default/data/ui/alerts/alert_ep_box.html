@@ -1,0 +1,45 @@
+<form class="form-horizontal form-complex">
+
+    <splunk-control-group label="Box Account">
+            <splunk-search-dropdown name="action.alert_ep_box.param.dest_guid"
+                    search="| rest /servicesNS/-/event_push/event_push/ep_box | table title alias" 
+                    label-field="alias" value-field="title" />
+          </splunk-control-group>
+    </splunk-control-group>
+
+    <div class="control-group">
+        <label class="control-label" style="width: 220px;" for="outputfile">Output Folder/File</label>
+
+        <div class="controls controls-block" style="margin-left: 230px; width: 246px;">
+            <input type="text" name="action.ep_box.param.outputfile" id="outputfile" />
+        </div>
+    </div>
+
+    <div class="control-group">
+        <label class="control-label" style="width: 220px;" for="outputformat">Output Format</label>
+        <div class="controls controls-block" style="margin-left: 230px; width: 246px;">
+            <select id="outputformat" name="action.ep_box.param.outputformat"> 
+                <option value="raw">Raw Text (_raw contents)</option>
+                <option value="json">JSON</option>
+                <option value="kv">Key-Value Pairs</option>
+                <option value="csv">Comma-Delimited</option>
+                <option value="tsv">Tab-Delimited</option>
+                <option value="pipe">Pipe-Delimited</option>
+            </select>
+        </div>
+    </div>
+<!--
+    <div class="control-group">
+        <label class="control-label" style="width: 220px;" for="fields">Fields List</label>
+        <div class="controls controls-block" style="margin-left: 230px; width: 246px;">
+            <input type="text" name="action.ep_box.param.fields" id="fields" />
+        </div>
+    </div>
+-->
+    <div class="control-group">
+        <label class="control-label" style="width: 220px;" for="compress">Compression</label>
+        <div class="controls controls-block" style="margin-left: 230px; width: 246px;">
+            <input type="checkbox" name="action.ep_box.param.compress" id="compress" />
+        </div>
+    </div>
+</form>

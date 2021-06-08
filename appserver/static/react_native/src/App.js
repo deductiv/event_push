@@ -221,13 +221,6 @@ class App extends React.Component {
 			current_config: '', 			// 
 			current_config_alias: '',		// end chonky,
 			loading: false,					// FadeIn control for chonky modal
-			error_states: { 
-				secret_key: true, 
-				private_key: true,
-				client_secret: true,
-				passphrase: true,
-				password: true
-			},
 			ep_general: {},
 			// table lists
 			ep_hec: [], 
@@ -243,7 +236,7 @@ class App extends React.Component {
 		})
 		this.refresh_tables();
 		
-		this.validate_field = this.validate_field.bind(this);
+		//this.validate_field = this.validate_field.bind(this);
 		this.refresh_tables = this.refresh_tables.bind(this);
 		this.dict_to_querystring = this.dict_to_querystring.bind(this);
 		this.rest_to_rows = this.rest_to_rows.bind(this);
@@ -271,17 +264,22 @@ class App extends React.Component {
 			{ title: "Stanza", field: "stanza", hidden: true },
 			// actions = 10%
 			{ title: "Default", field: "default", type: "boolean", width: "5%", headerStyle: center_table_header_styles },
-			{ title: "Name/Alias", field: "alias", width: "20%", validate: rowData => validators.string(rowData.alias).isValid }, 
-			{ title: "Hostname", field: "host", width: "25%", validate: rowData => validators.string(rowData.host).isValid },
-			{ title: "TCP Port", field: "port", width: "10%" },
-			{ title: "HEC Token", field: "token", width: "20%", validate: rowData => validators.uuid(rowData.token).isValid },
+			{ title: "Name/Alias", field: "alias", width: "20%", 
+				validate: rowData => validators.string(rowData.alias).isValid }, 
+			{ title: "Hostname", field: "host", width: "25%", 
+				validate: rowData => validators.string(rowData.host).isValid },
+			{ title: "TCP Port", field: "port", width: "10%", 
+				validate: rowData => (validators.number(rowData.port).isValid || rowData.port == null || rowData.port == "") },
+			{ title: "HEC Token", field: "token", width: "20%", 
+				validate: rowData => validators.uuid(rowData.token).isValid },
 			{ title: "SSL", field: "ssl", type: "boolean", width: "5%", initialEditValue: 1, headerStyle: center_table_header_styles }
 		],
 		ep_aws_s3: [
 			{ title: "Stanza", field: "stanza", hidden: true },
 			// actions = 10%
 			{ title: "Default", field: "default", type: "boolean", width: "5%", headerStyle: center_table_header_styles },
-			{ title: "Name/Alias", field: "alias", width: "12%", validate: rowData => validators.string(rowData.alias) }, 
+			{ title: "Name/Alias", field: "alias", width: "12%", 
+				validate: rowData => validators.string(rowData.alias) }, 
 			{ title: "Use ARN", field: "use_arn", type: "boolean", width: "5%", headerStyle: center_table_header_styles },
 			{ title: "Access Key ID", field: "access_key_id", width: "12%", 
 				validate: rowData => ((validators.bool(rowData.use_arn).isValid && rowData.use_arn) || validators.string(rowData.access_key_id).isValid)
@@ -292,13 +290,14 @@ class App extends React.Component {
 					<TextField
 						type="password"
 						value={props.value}
-						error={this.state.error_states['secret_key']}
+						error={ (props.value == null || !validators.string(props.value).isValid) && !(validators.bool(props.rowData.use_arn).isValid && props.rowData.use_arn) }
 						inputProps={{ "placeholder": "Secret Access Key" }}
 						onChange={e => {props.onChange(e.target.value)}}
 					/>), 
-				validate: rowData => this.validate_field(rowData, 'secret_key', 'password', (validators.bool(rowData.use_arn).isValid && rowData.use_arn))
+					validate: rowData => (validators.string(rowData.secret_key).isValid ||  (validators.bool(rowData.use_arn).isValid && rowData.use_arn))
 			},
-			{ title: "Region", field: "region", width: "10%", validate: rowData => validators.string(rowData.region) }, 
+			{ title: "Region", field: "region", width: "10%", 
+				validate: rowData => validators.string(rowData.region).isValid }, 
 			{ title: "Endpoint URL\n(Blank for AWS S3)", field: "endpoint_url", width: "12%" },
 			{ title: "Default Bucket ID", field: "default_s3_bucket", width: "12%" },
 			{ title: "Compress Output", field: "compress", type: "boolean", width: "5%", headerStyle: center_table_header_styles }
@@ -307,25 +306,31 @@ class App extends React.Component {
 			{ title: "Stanza", field: "stanza", hidden: true },
 			// actions = 10%
 			{ title: "Default", field: "default", type: "boolean", width: "5%", headerStyle: center_table_header_styles },
-			{ title: "Name/Alias", field: "alias", width: "14%", validate: rowData => validators.string(rowData.alias) }, 
-			{ title: "Enterprise ID", field: "enterprise_id", width: "10%", validate: rowData => validators.string(rowData.enterprise_id) },
-			{ title: "Client ID", field: "client_id", width: "9%", validate: rowData => validators.string(rowData.client_id) },
-			{ title: "Client Secret", field: "client_secret", width: "9%", validate: rowData => this.validate_field(rowData, 'client_secret', 'password'),
+			{ title: "Name/Alias", field: "alias", width: "14%", 
+				validate: rowData => validators.string(rowData.alias).isValid }, 
+			{ title: "Enterprise ID", field: "enterprise_id", width: "10%", 
+				validate: rowData => validators.string(rowData.enterprise_id).isValid },
+			{ title: "Client ID", field: "client_id", width: "9%", 
+				validate: rowData => validators.string(rowData.client_id).isValid },
+			{ title: "Client Secret", field: "client_secret", width: "9%", 
+				validate: rowData => validators.string(rowData.client_secret).isValid,
 				render: rowData => <span className="password_field">{((rowData.client_secret === undefined || rowData.client_secret == '') ? '' : '*'.repeat(8))}</span>,
 				editComponent: props => (
 					<TextField
-						error={this.state.error_states.client_secret}
+						error={ (props.value == null || !validators.string(props.value).isValid) }
 						type="password"
 						value={props.value}
 						inputProps={{"placeholder": "Client Secret"}}
 						onChange={e => {props.onChange(e.target.value)}}
 					/>) },
-			{ title: "Public Key ID", field: "public_key_id", width: "9%", validate: rowData => validators.string(rowData.public_key_id) },
-			{ title: "Private Key", field: "private_key", width: "36%", cellStyle: { wordBreak: 'keep-all'}, validate: rowData => this.validate_field(rowData, 'private_key', 'password'),
+			{ title: "Public Key ID", field: "public_key_id", width: "9%", 
+				validate: rowData => validators.string(rowData.public_key_id) },
+			{ title: "Private Key", field: "private_key", width: "36%", cellStyle: { wordBreak: 'keep-all'}, 
+				validate: rowData => validators.string(rowData.private_key).isValid,
 				render: rowData => <span className="password_field">{((rowData.private_key === undefined || rowData.private_key == '') ? '' : '[encrypted]')}</span>,
 				editComponent: ({ value, onChange }) => (
 					<TextField
-						error={this.state.error_states.private_key}
+						error={ (value == null || !validators.string(value).isValid) }
 						onChange={e => {onChange(e.target.value)}}
 						value={value}
 						placeholder="Private Key"
@@ -333,11 +338,12 @@ class App extends React.Component {
 						rows={1}
 						rowsMax={4}
 						/>) },
-			{ title: "Passphrase", field: "passphrase", width: "8%", validate: rowData => this.validate_field(rowData, 'passphrase', 'password'),
+			{ title: "Passphrase", field: "passphrase", width: "8%", 
+				validate: rowData => validators.string(rowData.passphrase).isValid,
 				render: rowData => <span className="password_field">{((rowData.passphrase === undefined || rowData.passphrase == '') ? '' : '*'.repeat(8))}</span>,
 				editComponent: props => (
 					<TextField
-						error={this.state.error_states.passphrase}
+						error={ (props.value == null || !validators.string(props.value).isValid) }
 						type="password"
 						value={props.value}
 						inputProps={{"placeholder": "Passphrase"}}
@@ -350,30 +356,33 @@ class App extends React.Component {
 			{ title: "Stanza", field: "stanza", hidden: true },
 			// actions = 10%
 			{ title: "Default", field: "default", type: "boolean", width: "5%", headerStyle: center_table_header_styles },
-			{ title: "Name/Alias", field: "alias", width: "14%", validate: rowData => validators.string(rowData.alias) }, 
-			{ title: "Hostname", field: "host", width: "35%", validate: rowData => validators.string(rowData.host) },
-			{ title: "TCP Port", field: "port", width: "10%" },
+			{ title: "Name/Alias", field: "alias", width: "14%", 
+				validate: rowData => validators.string(rowData.alias).isValid }, 
+			{ title: "Hostname", field: "host", width: "35%", 
+				validate: rowData => validators.string(rowData.host).isValid },
+			{ title: "TCP Port", field: "port", width: "10%",
+				validate: rowData => (validators.number(rowData.port).isValid || rowData.port == null || rowData.port == "") },
 			{ title: "Username", field: "username", width: "15%", 
-				validate: rowData => this.validate_field(rowData, 'username', 'string', this.fields_are_populated(rowData, ['private_key'])) }, 
+				validate: rowData => validators.string(rowData.username).isValid },
 			{ title: "Password", field: "password", width: "15%", 
-				validate: rowData => this.validate_field(rowData, 'password', 'password', this.fields_are_populated(rowData, ['private_key'])) ,
+				validate: rowData => (validators.string(rowData.private_key).isValid || validators.string(rowData.password).isValid),
 				render: rowData => <span className="password_field">{((rowData.password === undefined || rowData.password == '') ? '' : '*'.repeat(8))}</span>,
 				editComponent: props => (
 					<TextField
-						error={this.state.error_states.password}
+						error={ (props.value == null || !validators.string(props.value).isValid) && !(validators.string(props.rowData.private_key).isValid) }
 						type="password"
 						value={props.value}
 						inputProps={{"placeholder": "Password"}}
 						onChange={e => {props.onChange(e.target.value)}}
 					/>) },
 			{ title: "Private Key", field: "private_key", width: "36%", cellStyle: { wordBreak: 'keep-all'}, 
-				validate: rowData => this.validate_field(rowData, 'private_key', 'password', this.fields_are_populated(rowData, ['password'])),
+				validate: rowData => (validators.string(rowData.private_key).isValid || validators.string(rowData.password).isValid),
 				render: rowData => <span className="password_field">{((rowData.private_key === undefined || rowData.private_key == '') ? '' : '[encrypted]')}</span>,
-				editComponent: ({ value, onChange }) => (
+				editComponent: props => (
 					<TextField
-						error={this.state.error_states.private_key}
-						onChange={e => {onChange(e.target.value)}}
-						value={value}
+						error={ (props.value == null || !validators.string(props.value).isValid) && !(validators.string(props.rowData.password).isValid) }
+						onChange={e => {props.onChange(e.target.value)}}
+						value={props.value}
 						placeholder="Private Key"
 						multiline
 						rows={1}
@@ -395,22 +404,27 @@ class App extends React.Component {
 			{ title: "Stanza", field: "stanza", hidden: true },
 			// actions = 10%
 			{ title: "Default", field: "default", type: "boolean", width: "5%", headerStyle: center_table_header_styles },
-			{ title: "Name/Alias", field: "alias", width: "14%", validate: rowData => validators.string(rowData.alias) }, 
-			{ title: "Hostname", field: "host", width: "35%", validate: rowData => validators.string(rowData.host) },
-			{ title: "Domain", field: "domain", width: "15%", validate: rowData => validators.string(rowData.domain) },
-			{ title: "Username", field: "username", width: "15%", validate: rowData => validators.string(rowData.username) },
+			{ title: "Name/Alias", field: "alias", width: "14%", 
+				validate: rowData => validators.string(rowData.alias) }, 
+			{ title: "Hostname", field: "host", width: "35%", 
+				validate: rowData => validators.string(rowData.host) },
+			{ title: "Domain", field: "domain", width: "15%", 
+				validate: rowData => validators.string(rowData.domain) },
+			{ title: "Username", field: "username", width: "15%", 
+				validate: rowData => validators.string(rowData.username) },
 			{ title: "Password", field: "password", width: "15%", 
-			validate: rowData => this.validate_field(rowData, 'private_key', 'password', this.fields_are_populated(rowData, ['password'])),
+				validate: rowData => validators.string(rowData.password).isValid,
 				render: rowData => <span className="password_field">{((rowData.password === undefined || rowData.password == '') ? '' : '*'.repeat(8))}</span>,
 				editComponent: props => (
 					<TextField
-						error={this.state.error_states.password}
+						error={ (props.value == null || !validators.string(props.value).isValid) }
 						type="password"
 						value={props.value}
 						inputProps={{"placeholder": "Password"}}
 						onChange={e => {props.onChange(e.target.value)}}
 					/>) },
-			{ title: "Share Name", field: "share_name", width: "15%", validate: rowData => validators.string(rowData.share_name) },
+			{ title: "Share Name", field: "share_name", width: "15%", 
+				validate: rowData => validators.string(rowData.share_name).isValid },
 			{ title: "Default Folder", field: "default_folder", width: "20%" }, 
 			{ title: "Compress Output", field: "compress", type: "boolean", width: "5%", headerStyle: center_table_header_styles }
 		]
@@ -470,6 +484,7 @@ class App extends React.Component {
 		);
 	}
 	
+	/*
 	fields_are_populated = (rowData, field_list) => {
 		let fields_populated = true;
 		for (let field of field_list) {
@@ -479,9 +494,10 @@ class App extends React.Component {
 		}
 		return fields_populated;
 	}
-
 	validate_field = (rowData, field, validator, override) => {
-		//console.log("Validate field called for " + field);
+		console.log(`Validate field called for ${field}. Override = ${override}`);
+		console.log(JSON.stringify(rowData));
+
 		// Only use override if it's true
 		let is_valid;
 		if ( override !== undefined && override) { 
@@ -497,7 +513,7 @@ class App extends React.Component {
 			let error_status = !is_valid
 			// Inverse - true validation = no error
 			if (error_status !== this.state.error_states[field]) {
-				console.log("Setting state from validate_field");
+				console.log("Setting state from validate_field for field " + field);
 				this.setState(prev_state => ({
 					error_states: {
 						...prev_state.error_states,
@@ -509,7 +525,7 @@ class App extends React.Component {
 
 		//console.log(field + " result = " + is_valid);
 		return is_valid;
-	}
+	}*/
 	
 	// Download the data and push it into the corresponding state entry
 	refresh_tables = () => {

@@ -1,4 +1,4 @@
-require.config({"paths":{"main":"/static/app/event_push/react/main.js?v=4310a82801b25a3e3fc5","react":"/static/app/event_push/react/react.js?v=66d5549ca9cc11f6a70d","react-dom":"/static/app/event_push/react/react-dom.js?v=5bbcc7c7f5ecf54ff8cb"},"shim":{"main":{"exports":["main"]},"react":{"exports":"react"},"react-dom":{"exports":"react-dom"}}});
+require.config({"paths":{"main":"/static/app/event_push/react/main.js?v=8fca7ef81131520d86a8","react":"/static/app/event_push/react/react.js?v=66d5549ca9cc11f6a70d","react-dom":"/static/app/event_push/react/react-dom.js?v=5bbcc7c7f5ecf54ff8cb"},"shim":{"main":{"exports":["main"]},"react":{"exports":"react"},"react-dom":{"exports":"react-dom"}}});
                 require([
                         "splunkjs/ready!",
                         "splunkjs/mvc/simplexml/ready!",

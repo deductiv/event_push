@@ -28,6 +28,7 @@ import logging
 import sys, os
 import time
 import socket
+import json
 
 # Add lib folders to import path
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
@@ -38,7 +39,7 @@ import splunklib.client as client
 import splunklib.results as results
 from splunklib.searchcommands import StreamingCommand, dispatch, Configuration, Option, validators
 from CsvResultParser import *
-from deductiv_helpers import setup_logger, eprint, str2bool, get_config_from_alias, exit_error, port_is_open
+from deductiv_helpers import setup_logger, eprint, str2bool, get_config_from_alias, exit_error, port_is_open, replace_object_tokens
 
 # Use the library from George Starcher for HTTP Event Collector
 # Updated to support Python3
@@ -124,6 +125,8 @@ class ephec(StreamingCommand):
 		# Get the default values used for data originating from this machine
 		inputs_host = cli.getConfStanza('inputs','splunktcp')["host"]
 
+		logger.debug('search_ep_hec command: %s', self)  # logs command line
+
 		if self.source is None:
 			self.source = "$source$"
 
@@ -146,12 +149,12 @@ class ephec(StreamingCommand):
 			logger.debug("Proxy Exceptions: %s" % proxy_exceptions)
 
 		# Enumerate settings
-		session_key = self._metadata.searchinfo.session_key
-		splunkd_uri = self._metadata.searchinfo.splunkd_uri
-		app = self._metadata.searchinfo.app
-		user = self._metadata.searchinfo.username
-		owner = self._metadata.searchinfo.owner
-		dispatch = self._metadata.searchinfo.dispatch_dir
+		searchinfo = self._metadata.searchinfo
+		app = searchinfo.app
+		user = searchinfo.username
+		
+		# Replace all tokenized parameter strings
+		replace_object_tokens(self)
 		
 		try:
 			target_config = get_config_from_alias(cmd_config, self.target)
@@ -169,11 +172,11 @@ class ephec(StreamingCommand):
 		if len(hec_host) == 0:
 			exit_error(logger, "No host specified", 119371)
 
+		# Create HEC object
 		hec = http_event_collector(hec_token, hec_host, http_event_port=hec_port, http_event_server_ssl=hec_ssl)
 		if port_is_open(hec_host, hec_port):
 			logger.debug("Port connectivity check passed")
 			if hec.check_connectivity():
-				# Create HEC object
 
 				# Special event key fields that can be specified/overridden in the alert action
 				meta_keys = ['source', 'sourcetype', 'host', 'index']
@@ -212,12 +215,13 @@ class ephec(StreamingCommand):
 					# Only send _raw (no other fields) if the _raw field was included in the search result.
 					# (Don't include other fields/values)
 					if '_raw' in list(payload_event_src.keys()):
-						logger.debug("Using _raw from search result")
+						#logger.debug("Using _raw from search result")
 						payload.update({ "event": payload_event_src['_raw'] })
 					else:
 						payload.update({ "event": payload_event_src })
 
 					event_count += 1
+					logger.debug("Payload = " + str(payload))
 					hec.batchEvent(payload)
 					yield(event)
 

@@ -25,22 +25,16 @@ from __future__ import print_function
 from builtins import str
 from future import standard_library
 standard_library.install_aliases()
-import logging
 import sys, os, platform
-import time, datetime
+import time
 import random
-import re
-import json
-from deductiv_helpers import setup_logger, eprint, decrypt_with_secret, get_config_from_alias, replace_keywords, exit_error
+from deductiv_helpers import setup_logger, eprint, decrypt_with_secret, get_config_from_alias, exit_error, replace_object_tokens
 
 # Add lib subfolders to import path
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib'))
 # pylint: disable=import-error
 from splunk.clilib import cli_common as cli
-import splunk.entity as entity
-import splunklib.client as client
-import splunklib.results as results
 from splunklib.searchcommands import ReportingCommand, dispatch, Configuration, Option, validators
 import event_file
 
@@ -162,6 +156,9 @@ class epsftp(ReportingCommand):
 		app = self._metadata.searchinfo.app
 		user = self._metadata.searchinfo.username
 		dispatch = self._metadata.searchinfo.dispatch_dir
+		
+		# Replace all tokenized parameter strings
+		replace_object_tokens(self)
 
 		# Use the random number to support running multiple outputs in a single search
 		random_number = str(random.randint(10000, 100000))
