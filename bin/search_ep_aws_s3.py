@@ -140,47 +140,6 @@ class epawss3(ReportingCommand):
 		# Build the configuration
 		aws_config = get_config_from_alias(cmd_config, self.target)
 
-		'''
-		# Enumerate proxy settings
-		http_proxy = os.environ.get('HTTP_PROXY')
-		https_proxy = os.environ.get('HTTPS_PROXY')
-		proxy_exceptions = os.environ.get('NO_PROXY')
-
-		if http_proxy is not None:
-			logger.debug("HTTP proxy: %s" % http_proxy)
-		if https_proxy is not None:
-			logger.debug("HTTPS proxy: %s" % https_proxy)
-		if proxy_exceptions is not None:
-			logger.debug("Proxy Exceptions: %s" % proxy_exceptions)
-		
-		# Apply proxy settings to AWS config
-		proxy_definitions = {
-			'http': http_proxy,
-			'https': https_proxy
-		}
-		boto_config = Config(
-			signature_version='s3v4',
-			proxies=proxy_definitions
-		)
-		
-		# Apply non-null setting to boto config
-		if 'region' in list(aws_config.keys()):
-			region_config = Config(region_name=aws_config['region'])
-			boto_config.merge(region_config)
-		
-		# Set endpoint URL
-		if 'endpoint_url' in list(aws_config.keys()):
-			endpoint_url = aws_config['endpoint_url']
-		else:
-			endpoint_url = None
-
-		use_arn = str2bool(aws_config['use_arn'])
-
-		# Check for secret_key encryption
-		if not use_arn and aws_config['secret_key'][:1] == '$':
-			aws_config['secret_key'] = decrypt_with_secret(aws_config['secret_key'])
-		'''
-
 		if self.bucket is None:
 			if 'default_s3_bucket' in list(aws_config.keys()):
 				t = aws_config['default_s3_bucket']

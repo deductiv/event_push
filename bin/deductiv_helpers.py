@@ -146,6 +146,9 @@ def escape_quotes(string):
 	string = re.sub(r'(?<!\\)"', r'\"', string)
 	return string
 
+def escape_quotes_csv(string):
+	return string.replace('"', '""')
+
 def get_config_from_alias(config_data, stanza_guid_alias = None):
 	# Parse and merge the configuration
 	try:

@@ -95,12 +95,13 @@ def write_events_to_file(events, fields, local_output, outputformat, compression
 				if key in event_keys:
 					# Convert list to string value
 					if isinstance(value, list):
-						value = '"' + delimiter.join(value).replace('"', r'\"') + '"'
+						#value = '"' + delimiter.join(value).replace('"', r'\"') + '"'
+						value = '"' + delimiter.join(value).replace('"', r'""') + '"'
 					if outputformat == "csv":
 						# Escape any double-quotes
 						if '"' in value:
 							# String has a quotation mark. Quote it and escape those inside.
-							value = dhelp.escape_quotes(value)
+							value = dhelp.escape_quotes_csv(value)
 							value = '"' + value + '"'
 						# Quote the string if it has a space or separator
 						elif ' ' in value or ',' in value:
