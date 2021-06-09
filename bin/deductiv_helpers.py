@@ -31,6 +31,7 @@ import time
 import datetime
 import socket
 import json
+import random
 
 # Add lib folders to import path
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
@@ -97,7 +98,8 @@ def setup_logging(logger_name):
 
 # For alert actions
 def setup_logger(level, filename, facility):
-	logger = logging.getLogger(filename)
+	random_number = str(random.randint(10000, 100000))
+	logger = logging.getLogger(filename + str(random_number))
 	# Prevent the log messages from being duplicated in the python.log file
 	logger.propagate = False 
 	logger.setLevel(level)

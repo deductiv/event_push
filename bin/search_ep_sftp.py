@@ -279,7 +279,7 @@ class epsftp(ReportingCommand):
 			try:
 				event_counter = 0
 				# Write the output file to disk in the dispatch folder
-				logger.debug("Writing events to file %s in %s format. Compress=%s\n\tfields=%s", local_output_file, self.outputformat, self.compress, self.fields)
+				logger.debug("Writing events to dispatch file. file=\"%s\" format=%s compress=%s fields=%s", local_output_file, self.outputformat, self.compress, self.fields)
 				for event in event_file.write_events_to_file(events, self.fields, local_output_file, self.outputformat, self.compress):
 					yield event
 					event_counter += 1

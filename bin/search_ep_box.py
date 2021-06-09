@@ -164,7 +164,6 @@ class epbox(ReportingCommand):
 		# Replace all tokenized parameter strings
 		replace_object_tokens(self)
 
-		logger.debug('2')
 		try:
 			target_config = get_config_from_alias(cmd_config, self.target)
 			if target_config is None:
@@ -173,45 +172,6 @@ class epbox(ReportingCommand):
 		except BaseException as e:
 			exit_error(logger, "Error reading target server configuration: " + repr(e), 124812)
 		
-		'''
-		# Check to see if we have credentials
-		valid_settings = []
-		for l in list(target_config.keys()):
-			if len(target_config[l]) > 0:
-				valid_settings.append(l) 
-		if 'client_id' in valid_settings and 'client_secret' in valid_settings and 'enterprise_id' in valid_settings:
-			# A credential has been configured. Check for a cert.
-			if 'public_key_id' in valid_settings and 'private_key' in valid_settings and 'passphrase' in valid_settings:
-				# Certificate has been configured.
-				try:
-					enterprise_id = target_config['enterprise_id']
-					client_id = target_config['client_id']
-					client_secret = decrypt_with_secret(target_config['client_secret'])
-					public_key_id = target_config['public_key_id']
-					private_key = decrypt_with_secret(target_config['private_key']).replace('\\n', '\n')
-					passphrase = decrypt_with_secret(target_config['passphrase'])
-
-					box_authentication = {
-						"enterpriseID": enterprise_id,
-						"boxAppSettings": {
-							"clientID": client_id,
-							"clientSecret": client_secret,
-							"appAuth": {
-								"publicKeyID": public_key_id,
-								"privateKey": private_key,
-								"passphrase": passphrase
-							}
-						}
-					}
-					auth = JWTAuth.from_settings_dictionary(box_authentication)
-				except BaseException as e: 
-					exit_error(logger, "Could not find or decrypt the specified credential: " + repr(e), 230494)
-			else:
-				exit_error(logger, "Could not find required certificate settings", 2823872)
-		else:
-			exit_error(logger, "Could not find required configuration settings", 2823874)
-		'''
-
 		file_extensions = {
 			'raw':  '.log',
 			'kv':   '.log',
@@ -328,7 +288,7 @@ class epbox(ReportingCommand):
 		try:
 			event_counter = 0
 			# Write the output file to disk in the dispatch folder
-			logger.debug("Writing events to file %s in %s format. Compress=%s\n\tfields=%s", local_output_file, self.outputformat, self.compress, self.fields)
+			logger.debug("Writing events to dispatch file. file=\"%s\" format=%s compress=%s fields=%s", local_output_file, self.outputformat, self.compress, self.fields)
 			for event in event_file.write_events_to_file(events, self.fields, local_output_file, self.outputformat, self.compress):
 				yield event
 				event_counter += 1

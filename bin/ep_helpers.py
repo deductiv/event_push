@@ -1,4 +1,4 @@
-
+#!/usr/bin/env python
 import random
 import sys, os, platform
 import re
@@ -31,6 +31,8 @@ elif os_platform == 'Windows':
 sys.path.append(path_prepend)
 
 # pylint: disable=import-error
+# Splunk
+from splunk.clilib import cli_common as cli
 # Box.com
 from boxsdk import JWTAuth, Client, BoxAPIException
 # AWS libraries
@@ -48,8 +50,10 @@ proxy_exceptions = os.environ.get('NO_PROXY')
 
 random_number = str(random.randint(10000, 100000))
 
-logger = setup_logger('INFO', 'event_push.log', 'ep_helpers')
-logger.propagate = False
+app_config = cli.getConfStanza('ep_general','settings')
+facility = os.path.basename(__file__)
+facility = os.path.splitext(facility)[0]
+logger = setup_logger(app_config["log_level"], 'event_push.log', facility)
 
 def get_aws_connection(aws_config):
 
@@ -185,17 +189,6 @@ def get_aws_s3_directory(aws_config, bucket_folder_path):
 		folder_prefix = '/'
 	logger.debug("Folder Prefix = " + folder_prefix)
 
-	#logger.debug("bucket name = " + str(bucket_name))
-	#if bucket_name is None:
-		#if 'default_s3_bucket' in list(aws_config.keys()):
-			#t = aws_config['default_s3_bucket']
-			#logger.debug(t)
-			#if t is not None and len(t) > 0:
-			#	bucket_name = t
-			#else:
-			#	bucket_name = ''
-		#else:
-			#bucket_name = ''
 	try:
 		conn = get_aws_connection(aws_config)
 	except BaseException as e:
@@ -446,7 +439,6 @@ def get_box_directory(target_config, folder_path):
 		folder_data = box_folder_object.get_items(fields=fields)
 		logger.debug(folder_data.__dict__)
 		file_list = []
-		#logger.debug("test1")
 		#if hasattr(folder_data.item_collection, "item_collection"):
 		#	if hasattr(folder_data.item_collection, "entries"):
 		#		logger.debug("Has entries")
