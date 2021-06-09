@@ -18,11 +18,8 @@ if os_platform == 'Linux':
 		path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib', 'py3_linux_x86_64')
 	elif py_major_ver == 2:
 		path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib', 'py2_linux_x86_64')
-elif os_platform == 'Darwin': # Does not work with Splunk Python3 build. It requires code signing for libs.
-	if py_major_ver == 3:
-		path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib', 'py3_darwin_x86_64')
-	elif py_major_ver == 2:
-		path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib', 'py2_darwin_x86_64')
+elif os_platform == 'Darwin': # Does not work with Splunk Python build. It requires code signing for libs.
+	path_prepend = ''
 elif os_platform == 'Windows':
 	if py_major_ver == 3:
 		path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib', 'py3_win_amd64')
@@ -32,16 +29,12 @@ sys.path.append(path_prepend)
 
 # pylint: disable=import-error
 # Splunk
-from splunk.clilib import cli_common as cli
+#from splunk.clilib import cli_common as cli
 # Box.com
-from boxsdk import JWTAuth, Client, BoxAPIException
 # AWS libraries
-import boto3
-from botocore.config import Config
 # PySMB
-from smb.SMBConnection import SMBConnection
 #PySFTP
-import pysftp
+#
 
 # Enumerate proxy settings
 http_proxy = os.environ.get('HTTP_PROXY')
@@ -50,13 +43,17 @@ proxy_exceptions = os.environ.get('NO_PROXY')
 
 random_number = str(random.randint(10000, 100000))
 
-app_config = cli.getConfStanza('ep_general','settings')
+#app_config = cli.getConfStanza('ep_general','settings')
 facility = os.path.basename(__file__)
 facility = os.path.splitext(facility)[0]
-logger = setup_logger(app_config["log_level"], 'event_push.log', facility)
+#logger = setup_logger(app_config["log_level"], 'event_push.log', facility)
+logger = setup_logger('DEBUG', 'event_push.log', facility)
 
 def get_aws_connection(aws_config):
-
+	global boto3, Config
+	import boto3
+	from botocore.config import Config
+	
 	# Apply proxy settings to AWS config
 	proxy_definitions = {
 		'http': http_proxy,
@@ -172,6 +169,7 @@ def yield_s3_object(content, is_directory=False):
 
 
 def get_aws_s3_directory(aws_config, bucket_folder_path):
+
 	#logger.debug("Default bucket = " + aws_config['default_s3_bucket'])
 	logger.debug("Bucket folder path = " + bucket_folder_path)
 	folder_path = bucket_folder_path.strip('/').split('/')
@@ -219,6 +217,9 @@ def get_aws_s3_directory(aws_config, bucket_folder_path):
 
 
 def get_sftp_connection(target_config):
+	global pysftp
+	import pysftp
+
 	# Check to see if we have credentials
 	valid_settings = []
 	for l in list(target_config.keys()):
@@ -290,6 +291,9 @@ def yield_sftp_object(content, folder_path):
 		return None
 
 def get_smb_directory(smb_config, folder_path = '/'):
+	global SMBConnection
+	from smb.SMBConnection import SMBConnection
+	
 	# Get the local client hostname
 	client_name = socket.gethostname()
 	# Delete any domain from the client hostname string
@@ -401,6 +405,9 @@ def get_box_connection(target_config):
 
 
 def get_box_directory(target_config, folder_path):
+	global JWTAuth, Client, BoxAPIException
+	from boxsdk import JWTAuth, Client, BoxAPIException
+	
 	# Let the exception pass through
 	client = get_box_connection(target_config)
 	if 'default_folder' in list(target_config.keys()) and (folder_path is None or len(folder_path) == 0):

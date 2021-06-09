@@ -52,30 +52,30 @@ const po = (assets, entry_file, entry_file_object, entry_object) => {
     require_splunk_components_objects += "}";
     //assets["deps"] = ["runtime", "bootstrap-config"];
     return `require.config(${JSON.stringify(assets)});
-                require([
-                        "splunkjs/ready!",
-                        "splunkjs/mvc/simplexml/ready!",
-                        "splunkjs/mvc/utils",
-                        "${require_named_modules.join('", "')}"
-                    ], function (mvc,
-                                 ignored,
-                                 splunkjsUtils,
-                                 ${require_named_objects.join(", ").replace(/"/g, "")}
-                    ) {
-                    
-                    let myObjects = $(".${entry_object}").each((k, v)=>{
-                        reactdom.render(
-                        react.createElement(${entry_file_object.replace(/[^a-zA-Z]/g, "")}.default, {
-                            splunk: mvc,
-                            utils: splunkjsUtils,
-                            splunk_components: ${require_splunk_components_objects} ,
-                            data: {...$(v).data()}
-                            }),
-                         v
-                        );
-                    });
-                    });
-                `;
+        require([
+                "splunkjs/ready!",
+                "splunkjs/mvc/simplexml/ready!",
+                "splunkjs/mvc/utils",
+                "${require_named_modules.join('", "')}"
+            ], function (mvc,
+                            ignored,
+                            splunkjsUtils,
+                            ${require_named_objects.join(", ").replace(/"/g, "")}
+            ) {
+            
+            let myObjects = $(".${entry_object}").each((k, v)=>{
+                reactdom.render(
+                react.createElement(${entry_file_object.replace(/[^a-zA-Z]/g, "")}.default, {
+                    splunk: mvc,
+                    utils: splunkjsUtils,
+                    splunk_components: ${require_splunk_components_objects} ,
+                    data: {...$(v).data()}
+                    }),
+                    v
+                );
+            });
+            });
+        `;
 };
 
 let config_mode = process.env.NODE_ENV || false ? process.env.NODE_ENV : 'development',
@@ -99,7 +99,7 @@ module.exports = {
         globalObject: 'this',
         filename: '[name].js', // change this to '[name].[contenthash:8].js' if using the asset manifest for better caching
         path: path.join(__dirname, '../react'),
-        publicPath: `/static/app/${app_name}/react`,
+        publicPath: `/static/app/${app_name}/react/`,
         library: 'main',
         libraryTarget: 'umd',
     },
@@ -107,8 +107,12 @@ module.exports = {
     mode: mode,
     optimization: {
         moduleIds: "named",
-        minimize: false,
-        chunkIds: 'named'
+        minimize: true,
+        chunkIds: 'named' /*,
+        runtimeChunk: 'single',
+        splitChunks: {
+            chunks: 'all',
+        }*/
     },
     module: {
         rules: [
@@ -125,6 +129,7 @@ module.exports = {
                                 '@babel/plugin-proposal-class-properties',
                                 '@babel/plugin-transform-runtime',
                                 '@babel/plugin-transform-modules-amd',
+                                "@babel/plugin-syntax-dynamic-import"
 
                             ],
                             presets: ['@babel/preset-env', '@babel/preset-react']

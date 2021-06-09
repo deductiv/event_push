@@ -15,34 +15,25 @@
 # Author: J.R. Murray <jr.murray@deductiv.net>
 # Version: 2.0.0 (2021-04-26)
 */
-
-import React, { forwardRef, useRef } from 'react';
+ 
+import React, { forwardRef, Suspense } from 'react';
 import { Tab, Tabs, TabList, TabPanel } from 'react-tabs';
-import { FormControl, TextField, Select, InputLabel, MenuItem, Checkbox, Button } from '@material-ui/core';
+import { FormControl, TextField, Select, InputLabel, MenuItem } from '@material-ui/core';
 import MaterialTable from '@material-table/core';
-import Modal from 'react-bootstrap/Modal';
 // Snackbar notifications
 import { withSnackbar } from 'notistack';
 // UUID for stanza name generation
 import uuid from 'react-native-uuid';
 import validator from 'validator';
-// Display timestamps with timezone adjustment
 import moment from 'moment';
 import 'moment-timezone';
 
-//import { keyframes } from "styled-components";
-import FadeIn from 'react-fade-in';
-
-// File browser UI
-import { setChonkyDefaults, FileBrowser, FileNavbar, FileToolbar, FileList, ChonkyActions } from 'chonky';
-import { ChonkyIconFA } from 'chonky-icon-fontawesome';
-setChonkyDefaults({ iconComponent: ChonkyIconFA });
-ChonkyActions.ToggleHiddenFiles.option.defaultValue = false;
+// Lazy load controls for the file browser UI
+const FadeIn = React.lazy(() => import('react-fade-in'));
+const FileBrowserModal = React.lazy(() => import('./FileBrowserModal'));
 
 // Stylesheets
 import 'react-tabs/style/react-tabs.css';
-//import 'bootstrap/dist/css/bootstrap.min.css';
-
 
 import Search from "@material-ui/icons/Search";
 import FirstPage from "@material-ui/icons/FirstPage";
@@ -255,7 +246,7 @@ class App extends React.Component {
 		this.updateParentState = this.updateParentState.bind(this);
 
 		// Tags
-		this.FileBrowserModal = this.FileBrowserModal.bind(this);
+		//this.FileBrowserModal = this.FileBrowserModal.bind(this);
 		this.EPTabContent = this.EPTabContent.bind(this);
 	}
 
@@ -429,103 +420,6 @@ class App extends React.Component {
 			{ title: "Compress Output", field: "compress", type: "boolean", width: "5%", headerStyle: center_table_header_styles }
 		]
 	};
-
-	FileBrowserModal = (props) => {		
-		return (
-			<Modal
-				//size="lg"
-				id="ep_file_browser_modal"
-				show={this.state.show_file_browser}
-				onHide={ () => {
-					console.log("Setting state from FileBrowserModal");
-					this.setState({
-						show_file_browser: false,
-						file_list: [],
-						folder_chain: []
-					})}
-				}
-				dialogClassName={"primaryModal"}
-				aria-labelledby="ep_file_browser"
-				centered={true}
-				className="modal-wide in"
-				style={{height: '60%', resize: 'vertical'}}
-			>
-				<Modal.Header closeButton>
-					<Modal.Title id="ep_file_browser">
-					Browse Location: {config_descriptions[this.state.current_config]} / {this.state.current_config_alias} 
-					</Modal.Title>
-				</Modal.Header>
-				<Modal.Body
-					style={{height: '100%'}}>
-					<FileBrowser
-						instanceId={props.instanceId}
-						files={this.state.file_list}
-						folderChain={this.state.folder_chain}
-						fillParentContainer={true}
-						onFileAction={this.handleFileAction}
-						defaultFileViewActionId={ChonkyActions.EnableListView.id}
-						disableDragAndDrop={true}
-						disableDragAndDropProvider={true}
-						disableSelection={true}
-						disableDefaultFileActions={[
-							ChonkyActions.OpenSelection.id,
-							ChonkyActions.SelectAllFiles.id,
-							ChonkyActions.ClearSelection.id,
-							ChonkyActions.EnableCompactView.id,
-							ChonkyActions.EnableGridView.id
-						]}
-					>
-						<FileNavbar />
-						<FileToolbar />
-						<FileList />
-					</FileBrowser>
-				</Modal.Body>
-			</Modal>
-		);
-	}
-	
-	/*
-	fields_are_populated = (rowData, field_list) => {
-		let fields_populated = true;
-		for (let field of field_list) {
-			if ( !(field in rowData && rowData[field].length > 0) ) {
-				fields_populated = false;
-			}
-		}
-		return fields_populated;
-	}
-	validate_field = (rowData, field, validator, override) => {
-		console.log(`Validate field called for ${field}. Override = ${override}`);
-		console.log(JSON.stringify(rowData));
-
-		// Only use override if it's true
-		let is_valid;
-		if ( override !== undefined && override) { 
-			is_valid = override
-		} else {
-			if (validator == 'password') {
-				is_valid = validators.string(rowData[field]).isValid;
-			} else {
-				is_valid = validators[validator](rowData[field]).isValid;
-			}
-		}
-		if (validator == 'password') {
-			let error_status = !is_valid
-			// Inverse - true validation = no error
-			if (error_status !== this.state.error_states[field]) {
-				console.log("Setting state from validate_field for field " + field);
-				this.setState(prev_state => ({
-					error_states: {
-						...prev_state.error_states,
-						[field]: error_status
-					}
-				}));
-			}
-		}
-
-		//console.log(field + " result = " + is_valid);
-		return is_valid;
-	}*/
 	
 	// Download the data and push it into the corresponding state entry
 	refresh_tables = () => {
@@ -539,7 +433,6 @@ class App extends React.Component {
 			})
 		}
 	}
-	//
 
 	// Convert an object to an HTTP query string (for Splunk configuration POST requests)
 	dict_to_querystring = (d) => {
@@ -749,12 +642,9 @@ class App extends React.Component {
 	}
 
 	handleFileAction = (data) => {
-			if (data.id === ChonkyActions.OpenFiles.id) {
-				if (!data.payload.targetFile || !data.payload.targetFile.isDir) return;
-
-				const newPrefix = `${data.payload.targetFile.id.replace(/\/*$/, '')}/`;
-				this.show_folder_contents(this.state.current_config, this.state.current_config_alias, this.state.current_config_container, newPrefix)
-			}
+			if (!data.payload.targetFile || !data.payload.targetFile.isDir) return;
+			const newPrefix = `${data.payload.targetFile.id.replace(/\/*$/, '')}/`;
+			this.show_folder_contents(this.state.current_config, this.state.current_config_alias, this.state.current_config_container, newPrefix)
 		}
 
 	// Set the state data when adding a configuration item using the table view
@@ -762,7 +652,6 @@ class App extends React.Component {
 		return new Promise((resolve, reject) => {
 //			setTimeout(async () => {
 				//console.log("Showing folder data for: " + config_file + "\n" + alias + "\n"  + container_name + "\n"  + folder);
-				//console.log("Loading: " + JSON.stringify(this.state.loading));
 				//console.log("Setting state from show_folder_contents (first)");
 				let old_chain = [...this.state.folder_chain];
 				let old_files = [...this.state.file_list];
@@ -858,9 +747,7 @@ class App extends React.Component {
 										file_list[f].modDate = moment.unix(file_list[f].modDate).format('YYYY-MM-DD hh:mm:ss ZZ');
 									}
 								}
-								//console.log("Setting state from show_folder_contents (second)");
 								this.setState({"file_list": file_list}, () => {
-									//console.log("Loading2: " + JSON.stringify(this.state.loading));
 									//console.log("Setting state from show_folder_contents (last)");
 									this.setState({loading: false,
 										folder_chain: chain,
@@ -947,11 +834,13 @@ class App extends React.Component {
 		console.log("Rendering");
 		return (
 			<div>
-				{this.state.loading && (
-					<FadeIn transitionDuration="125">
-						<LoadingOverlay />
-					</FadeIn>
-				)}
+				<Suspense fallback={<div>Loading...</div>}>
+					{this.state.loading && (
+						<FadeIn transitionDuration="125">
+							<LoadingOverlay />
+						</FadeIn>
+					)}
+				</Suspense>
 				<Tabs id="tabs_list" className="nav nav-tabs" 
 					defaultIndex={0} transition={false} >
 					<TabList className="nav nav-tabs">
@@ -1033,7 +922,26 @@ class App extends React.Component {
 							config="ep_smb" />
 					</TabPanel>
 				</Tabs>
-				<this.FileBrowserModal id="file_browser" instanceId="ep" />
+				<Suspense fallback={<div>Loading...</div>}>
+					{this.state.show_file_browser && (
+						<FileBrowserModal 
+							id="file_browser" 
+							instanceId="ep" 
+							show={this.state.show_file_browser}
+							onHide={ () => {
+								console.log("Setting state from FileBrowserModal");
+								this.setState({
+									show_file_browser: false,
+									file_list: [],
+									folder_chain: []
+								})}
+							}
+							location={`${config_descriptions[this.state.current_config]} / ${this.state.current_config_alias}`} 
+							file_list={this.state.file_list}
+							folder_chain={this.state.folder_chain}
+							onFileAction={this.handleFileAction} />
+					)}
+				</Suspense>
 			</div>
 		);
 	}

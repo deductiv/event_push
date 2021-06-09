@@ -393,6 +393,9 @@ label.MuiFormControlLabel-root {
   opacity: 0.8;
 }
 
+.chonky-chonkyRoot {
+  user-select: text !important;
+}
 .chonky-searchFieldContainer {
   width: 50% !important;
 }
@@ -418,7 +421,17 @@ label.MuiFormControlLabel-root {
 div[class^='listFileEntryProperty-'] {
   /*flex: 0 1 auto;*/
 }
-
+/* Timestamp field in file listing */
+div[class^='listFileEntry-'] > :nth-child(5) {
+  flex: 1 1 100px;
+}
+/* Size field in file listing */
+div[class^='listFileEntry-'] > :nth-child(6) {
+  float: right;
+  flex: none;
+  width: 100px;
+  text-align: right;
+}
 .spinner {
   width: 40px;
   height: 40px;
