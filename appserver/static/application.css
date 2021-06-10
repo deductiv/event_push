@@ -13,39 +13,45 @@
 .splunk-header.splunk-view.splunk-header.splunk-view > div[data-view="views/shared/appbar/Master"] {
     background-color: #426E86;
 }
-
+#ep_docs {
+  width: 800px;
+}
+#ep_docs > ul > li > p {
+  /* Line breaks in dashboard */
+  margin-bottom: 3px;
+}
 h1 {
-    color: var(--level1-color);
-    clear: both;
-    padding-top: 15px;
-    padding-bottom: 25px;
-    font-size: 24px !important;
+  color: var(--level1-color);
+  clear: both;
+  padding-top: 15px;
+  padding-bottom: 25px;
+  font-size: 24px !important;
 }
 h2 {
-    color: var(--level2-color);
-    clear: both;
-    padding-bottom: 15px;
-    padding-top: 15px;
-    /*width: 275px;*/
-    /*text-align: right;*/
-    margin-left: 50px;
-    font-size: 18px !important;
-    font-weight: bold !important;
+  color: var(--level2-color);
+  clear: both;
+  padding-bottom: 15px;
+  padding-top: 15px;
+  /*width: 275px;*/
+  /*text-align: right;*/
+  margin-left: 50px;
+  font-size: 18px !important;
+  font-weight: bold !important;
 }
 h3 {
-    color: var(--level3-color);
-    font-size: 16px !important;
+  color: var(--level3-color);
+  font-size: 16px !important;
 }
 h4 {
-    color: var(--level4-color);
-    font-size: 14px !important;
+  color: var(--level4-color);
+  font-size: 14px !important;
 }
 hr {
-    clear: both;
-    height: 3px;
-    background: var(--level3-color);
-    width: 600px;
-    margin-left: 5%;
+  clear: both;
+  height: 3px;
+  background: var(--level3-color);
+  /*width: 600px;
+  margin-left: 5%;*/
 }
 code {
     color: var(--level1-color);

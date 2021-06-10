@@ -5,3 +5,5 @@ access = read : [ admin, power, user ], write : [ admin, power ]
 [views]
 export = none
 
+[savedsearches]
+export = none

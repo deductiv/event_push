@@ -15,133 +15,280 @@
       margin-top: 8px;
     }
   </style>
-<h1>Event Push - Splunk Add-On by Deductiv</h1>
-<p>This app allows you to push Splunk search results to remote destinations.  Currently supports:</p>
+  <div id="ep_docs">
+<h1><img alt="App icon" src="/splunkd/__raw/servicesNS/nobody/event_push/static/appIcon.png" /> Event Push - Splunk Add-On by <a href="https://www.deductiv.net/">Deductiv</a></h1>
+<p>This app exports your Splunk search results to remote destinations, so you can do more with your Splunk data. It provides search commands and alert actions to export/push/upload/share your data to multiple destinations of each type. The app must be configured via the Setup dashboard before using it. The setup dashboard includes a connection test feature in the form of a "<strong>Browse</strong>" action for all file-based destinations.</p>
+<h2>Supported Export Formats</h2>
 <ul>
-<li>Amazon Web Services (AWS) S3 Buckets (search command)</li>
-<li>Box.com (search command)</li>
-<li>Splunk HTTP Event Collector (alert action + search command)</li>
+<li>JSON</li>
+<li>Raw Text</li>
+<li>KV Pairs</li>
+<li>Comma-Delimited (CSV)</li>
+<li>Tab-Delimited (TSV)</li>
+<li>Pipe-Delimited</li>
 </ul>
-<h2>AWS S3 Event Push Search Command (s3ep)</h2>
-<h3>Syntax</h3>
-<pre><code>search | s3ep credential=&lt;credential name&gt; bucket=&lt;bucket&gt; outputfile=&lt;[folder/]filename&gt; outputformat=[json|raw|kv|csv|tsv|pipe] compression=[true|false] fields=&lt;fields list&gt;</code></pre>
-<h3>Description</h3>
-<p>Push Splunk events to AWS S3 over JSON or raw text.  The S3 bucket can be configured in the app setup page or in hep.conf directly. It can be configured to use the assumed role of the search head EC2 instance, or up to 20 OAuth credentials can be configured.</p>
+<h2>File-Based Destinations</h2>
+<ul>
+<li>Amazon Web Services (AWS) S3-Compatible Object Storage  </li>
+<li>Box.com Cloud Storage  </li>
+<li>SMB File Shares  </li>
+<li>SFTP Servers  </li>
+</ul>
+<h2>Streaming Destinations</h2>  
+<ul>
+<li>Splunk HTTP Event Collector  </li>
+</ul>
+<hr />
+<h2>AWS S3-Compatible Object Storage (epawss3)</h2>
+<p>Export Splunk search results to AWS S3-compatible object storage. Connections can be configured to authenticate using OAuth credentials or the assumed role of the search head EC2 instance.  </p>
+<h3>Capabilities</h3>
+<ul>
+<li>configure_ep_aws_s3_read  </li>
+<li>configure_ep_aws_s3_write  </li>
+</ul>
+<h3>Search Command Syntax</h3>
+<pre><code>&lt;search&gt; | epawss3  
+        target=&lt;target name/alias&gt;  
+        bucket=&lt;bucket&gt;  
+        outputfile=&lt;output path/filename&gt;  
+        outputformat=[json|raw|kv|csv|tsv|pipe]  
+        fields="&lt;comma-delimited fields list&gt;"  
+        compress=[true|false]  </code></pre>
 <h3>Arguments</h3>
 <ul>
 <li>
-<h4>Credential</h4>
-<p class="option_block"><strong>Syntax:</strong> credential=&lt;credential name&gt;</p>
-<p class="option_block"><strong>Description:</strong> The name/alias of the configured credential</p>
-<p class="option_block"><strong>Default:</strong> The credential specified in the "default_credential" setting in hep.conf will be used. This can be specified in the file by ID (e.g. credential1) or alias. If none is set and use_arn is enabled in the configuration, the assumed role of the local EC2 instance will be used.  </p>
+<h4>Target</h4>
+<p><strong>Syntax:</strong> target=&lt;target name/alias&gt;</p><p>
+<strong>Description:</strong> The name/alias of the destination connection</p><p>
+<strong>Default:</strong> The target specified as the default within the setup dashboard  </p>
 </li>
 <li>
 <h4>Bucket</h4>
-<p class="option_block"><strong>Syntax:</strong> bucket=&lt;bucket name&gt;</p>
-<p class="option_block"><strong>Description:</strong> The name of the destination S3 bucket</p>
-<p class="option_block"><strong>Default:</strong> The bucket name defined in hep.conf, aws stanza  </p>
+<p><strong>Syntax:</strong> bucket=&lt;bucket name&gt;</p><p>
+<strong>Description:</strong> The name of the destination S3 bucket</p><p>
+<strong>Default:</strong> Specified within the target configuration  </p>
 </li>
 <li>
 <h4>Output File</h4>
-<p class="option_block"><strong>Syntax:</strong> outputfile=&lt;[folder/]file name&gt;</p>
-<p class="option_block"><strong>Description:</strong> The name of the file to be written to the S3 bucket. If compression=true, a .gz extension will be appended. If compression is not specified and the filename ends in .gz, compression will automatically be applied.</p>
-<p class="option_block"><strong>Default:</strong> <code>app_username_epoch.ext</code> (e.g. <code>search_admin_1588000000.log</code>).  json=.json, csv=.csv, tsv=.tsv, pipe=.log, kv=.log, raw=.log</p>
-<p class="option_block"><strong>Keywords:</strong> <code>__now__</code>=epoch, <code>__today__</code>=date in yyyy-mm-dd format, <code>__nowft__</code>=timestamp in yyyy-mm-dd_hhmmss format.  </p>
+<p><strong>Syntax:</strong> outputfile=&lt;[folder/]file name&gt;</p><p>
+<strong>Description:</strong> The name of the file to be written to the destination. If compression=true, a .gz extension will be appended. If compression is not specified and the filename ends in .gz, compression will automatically be applied.</p><p>
+<strong>Default:</strong> <code>app_username_epoch.ext</code> (e.g. <code>search_admin_1588000000.log</code>).  json=.json, csv=.csv, tsv=.tsv, pipe=.log, kv=.log, raw=.log</p><p>
+<strong>Keywords:</strong> <code>__now__</code>=epoch, <code>__today__</code>=date in yyyy-mm-dd format, <code>__nowft__</code>=timestamp in yyyy-mm-dd_hhmmss format.  </p>
 </li>
 <li>
 <h4>Output Format</h4>
-<p class="option_block"><strong>Syntax:</strong> outputformat=[json|raw|kv|csv|tsv|pipe]</p>
-<p class="option_block"><strong>Description:</strong> The format written for the output events/search results</p>
-<p class="option_block"><strong>Default:</strong> <em>csv</em>  </p>
+<p><strong>Syntax:</strong> outputformat=[json|raw|kv|csv|tsv|pipe]</p><p>
+<strong>Description:</strong> The format for the exported search results</p><p>
+<strong>Default:</strong> <em>csv</em>  </p>
 </li>
 <li>
 <h4>Fields</h4>
-<p class="option_block"><strong>Syntax:</strong> fields="field1, field2, field3"</p>
-<p class="option_block"><strong>Description:</strong> Limit the fields to be written to the S3 file</p>
-<p class="option_block"><strong>Default:</strong> All (Unspecified)  </p>
+<p><strong>Syntax:</strong> fields="field1, field2, field3"</p><p>
+<strong>Description:</strong> Limit the fields to be written to the exported file. Wildcards are supported.</p><p>
+<strong>Default:</strong> All (*)  </p>
 </li>
 <li>
 <h4>Compression</h4>
-<p class="option_block"><strong>Syntax:</strong> compression=[true|false]</p>
-<p class="option_block"><strong>Description:</strong> Compress the output into a .gz file before uploading to S3</p>
-<p class="option_block"><strong>Default:</strong> false, unless outputfile ends in .gz  </p>
+<p><strong>Syntax:</strong> compress=[true|false]</p><p>
+<strong>Description:</strong> Create the file as a .gz compressed archive</p><p>
+<strong>Default:</strong> Specified within the target configuration  </p>
 </li>
 </ul>
-<h2>Box Event Push Search Command (boxep)</h2>
-<h3>Syntax</h3>
-<pre><code>search | boxep folder=&lt;/folder&gt; outputfile=&lt;filename&gt; outputformat=[json|raw|kv|csv|tsv|pipe] compression=[true|false] fields=&lt;fields list&gt;</code></pre>
-<h3>Description</h3>
-<p>Push Splunk events to Box over JSON or raw text. Box must be configured with a Custom App using Server Authentication (with JWT) and a certificate generated. Once that is complete, the app must be submitted for approval by the administrator.</p>
+<hr />
+<h2>Box Event Push (epbox)</h2>
+<p>Export Splunk search results to Box cloud storage. Box must be configured with a Custom App using Server Authentication (with JWT) and a certificate generated. Then, the app must be submitted for approval by the administrator. The administrator should create a folder within the app's account and share it with the appropriate users.  </p>
+<h3>Capabilities</h3>
+<ul>
+<li>configure_ep_box_read  </li>
+<li>configure_ep_box_write  </li>
+</ul>
+<h3>Search Command Syntax</h3>
+<pre><code>&lt;search&gt; | epbox  
+        target=&lt;target name/alias&gt;  
+        outputfile=&lt;output path/filename&gt;  
+        outputformat=[json|raw|kv|csv|tsv|pipe]  
+        fields="&lt;comma-delimited fields list&gt;"  
+        compress=[true|false]  </code></pre>
 <h3>Arguments</h3>
 <ul>
 <li>
-<h4>Folder</h4>
-<p class="option_block"><strong>Syntax:</strong> folder=&lt;folder path&gt;</p>
-<p class="option_block"><strong>Description:</strong> The name of the destination folder</p>
-<p class="option_block"><strong>Default:</strong> /</p>
+<h4>Target</h4>
+<p><strong>Syntax:</strong> target=&lt;target name/alias&gt;</p><p>
+<strong>Description:</strong> The name/alias of the destination connection</p><p>
+<strong>Default:</strong> The target specified as the default within the setup dashboard  </p>
 </li>
 <li>
 <h4>Output File</h4>
-<p class="option_block"><strong>Syntax:</strong> outputfile=&lt;file name&gt;</p>
-<p class="option_block"><strong>Description:</strong> The name of the file to be written to the Box folder. If compression=true, a .gz extension will be appended. If compression is not specified and the filename ends in .gz, compression will automatically be applied.</p>
-<p class="option_block"><strong>Default:</strong> <code>app_username_epoch.ext</code> (e.g. <code>search_admin_1588000000.log</code>).  json=.json, csv=.csv, tsv=.tsv, pipe=.log, kv=.log, raw=.log</p>
-<p class="option_block"><strong>Keywords:</strong> <code>__now__</code>=epoch, <code>__today__</code>=date in yyyy-mm-dd format, <code>__nowft__</code>=timestamp in yyyy-mm-dd_hhmmss format.  </p>
+<p><strong>Syntax:</strong> outputfile=&lt;[folder/]file name&gt;</p><p>
+<strong>Description:</strong> The name of the file to be written to the destination. If compression=true, a .gz extension will be appended. If compression is not specified and the filename ends in .gz, compression will automatically be applied.</p><p>
+<strong>Default:</strong> <code>app_username_epoch.ext</code> (e.g. <code>search_admin_1588000000.log</code>).  json=.json, csv=.csv, tsv=.tsv, pipe=.log, kv=.log, raw=.log</p><p>
+<strong>Keywords:</strong> <code>__now__</code>=epoch, <code>__today__</code>=date in yyyy-mm-dd format, <code>__nowft__</code>=timestamp in yyyy-mm-dd_hhmmss format.  </p>
 </li>
 <li>
 <h4>Output Format</h4>
-<p class="option_block"><strong>Syntax:</strong> outputformat=[json|raw|kv|csv|tsv|pipe]</p>
-<p class="option_block"><strong>Description:</strong> The format written for the output events/search results</p>
-<p class="option_block"><strong>Default:</strong> <em>csv</em>  </p>
+<p><strong>Syntax:</strong> outputformat=[json|raw|kv|csv|tsv|pipe]</p><p>
+<strong>Description:</strong> The format for the exported search results</p><p>
+<strong>Default:</strong> <em>csv</em>  </p>
 </li>
 <li>
 <h4>Fields</h4>
-<p class="option_block"><strong>Syntax:</strong> fields="field1, field2, field3"</p>
-<p class="option_block"><strong>Description:</strong> Limit the fields to be written to the output file</p>
-<p class="option_block"><strong>Default:</strong> All (Unspecified)  </p>
+<p><strong>Syntax:</strong> fields="field1, field2, field3"</p><p>
+<strong>Description:</strong> Limit the fields to be written to the exported file. Wildcards are supported.</p><p>
+<strong>Default:</strong> All (*)  </p>
 </li>
 <li>
 <h4>Compression</h4>
-<p class="option_block"><strong>Syntax:</strong> compression=[true|false]</p>
-<p class="option_block"><strong>Description:</strong> Compress the output into a .gz file before uploading to Box</p>
-<p class="option_block"><strong>Default:</strong> false, unless outputfile ends in .gz  </p>
+<p><strong>Syntax:</strong> compress=[true|false]</p><p>
+<strong>Description:</strong> Create the file as a .gz compressed archive</p><p>
+<strong>Default:</strong> Specified within the target configuration  </p>
 </li>
 </ul>
-<h2>Splunk HEC Event Push Search Command (hep)</h2>
-<h3>Syntax</h3>
-<pre><code>search | hep host=[host_value|$host_field$] source=[source_value|$source_field$] sourcetype=[sourcetype_value|$sourcetype_field$] index=[index_value|$index_field$]</code></pre>
-<h3>Description</h3>
-<p>Push Splunk events to an HTTP listener (such as Splunk HEC) over JSON.</p>
+<hr />
+<h2>SMB Event Push Search Command (epsmb)</h2>
+<p>Export Splunk search results to SMB file shares.  </p>
+<h3>Capabilities</h3>
+<ul>
+<li>configure_ep_smb_read  </li>
+<li>configure_ep_smb_write  </li>
+</ul>
+<h3>Search Command Syntax</h3>
+<pre><code>&lt;search&gt; | epsmb  
+        target=&lt;target name/alias&gt;  
+        outputfile=&lt;output path/filename&gt;  
+        outputformat=[json|raw|kv|csv|tsv|pipe]  
+        fields="&lt;comma-delimited fields list&gt;"  
+        compress=[true|false]  </code></pre>
+<h3>Arguments</h3>
+<ul>
+<li>
+<h4>Target</h4>
+<p><strong>Syntax:</strong> target=&lt;target name/alias&gt;</p><p>
+<strong>Description:</strong> The name/alias of the destination connection</p><p>
+<strong>Default:</strong> The target specified as the default within the setup dashboard  </p>
+</li>
+<li>
+<h4>Output File</h4>
+<p><strong>Syntax:</strong> outputfile=&lt;[folder/]file name&gt;</p><p>
+<strong>Description:</strong> The name of the file to be written to the destination. If compression=true, a .gz extension will be appended. If compression is not specified and the filename ends in .gz, compression will automatically be applied.</p><p>
+<strong>Default:</strong> <code>app_username_epoch.ext</code> (e.g. <code>search_admin_1588000000.log</code>).  json=.json, csv=.csv, tsv=.tsv, pipe=.log, kv=.log, raw=.log</p><p>
+<strong>Keywords:</strong> <code>__now__</code>=epoch, <code>__today__</code>=date in yyyy-mm-dd format, <code>__nowft__</code>=timestamp in yyyy-mm-dd_hhmmss format.  </p>
+</li>
+<li>
+<h4>Output Format</h4>
+<p><strong>Syntax:</strong> outputformat=[json|raw|kv|csv|tsv|pipe]</p><p>
+<strong>Description:</strong> The format for the exported search results</p><p>
+<strong>Default:</strong> <em>csv</em>  </p>
+</li>
+<li>
+<h4>Fields</h4>
+<p><strong>Syntax:</strong> fields="field1, field2, field3"</p><p>
+<strong>Description:</strong> Limit the fields to be written to the exported file. Wildcards are supported.</p><p>
+<strong>Default:</strong> All (*)  </p>
+</li>
+<li>
+<h4>Compression</h4>
+<p><strong>Syntax:</strong> compress=[true|false]</p><p>
+<strong>Description:</strong> Create the file as a .gz compressed archive</p><p>
+<strong>Default:</strong> Specified within the target configuration  </p>
+</li>
+</ul>
+<hr />
+<h2>SFTP Event Push Search Command (epsftp)</h2>
+<p>Export Splunk search results to SFTP servers.  </p>
+<h3>Capabilities</h3>
+<ul>
+<li>configure_ep_sftp_read  </li>
+<li>configure_ep_sftp_write  </li>
+</ul>
+<h3>Search Command Syntax</h3>
+<pre><code>&lt;search&gt; | epsftp  
+        target=&lt;target name/alias&gt;  
+        outputfile=&lt;output path/filename&gt;  
+        outputformat=[json|raw|kv|csv|tsv|pipe]  
+        fields="&lt;comma-delimited fields list&gt;"  
+        compress=[true|false]  </code></pre>
+<h3>Arguments</h3>
+<ul>
+<li>
+<h4>Target</h4>
+<p><strong>Syntax:</strong> target=&lt;target name/alias&gt;</p><p>
+<strong>Description:</strong> The name/alias of the destination connection</p><p>
+<strong>Default:</strong> The target specified as the default within the setup dashboard  </p>
+</li>
+<li>
+<h4>Output File</h4>
+<p><strong>Syntax:</strong> outputfile=&lt;[folder/]file name&gt;</p><p>
+<strong>Description:</strong> The name of the file to be written to the destination. If compression=true, a .gz extension will be appended. If compression is not specified and the filename ends in .gz, compression will automatically be applied.</p><p>
+<strong>Default:</strong> <code>app_username_epoch.ext</code> (e.g. <code>search_admin_1588000000.log</code>).  json=.json, csv=.csv, tsv=.tsv, pipe=.log, kv=.log, raw=.log</p><p>
+<strong>Keywords:</strong> <code>__now__</code>=epoch, <code>__today__</code>=date in yyyy-mm-dd format, <code>__nowft__</code>=timestamp in yyyy-mm-dd_hhmmss format.  </p>
+</li>
+<li>
+<h4>Output Format</h4>
+<p><strong>Syntax:</strong> outputformat=[json|raw|kv|csv|tsv|pipe]</p><p>
+<strong>Description:</strong> The format for the exported search results</p><p>
+<strong>Default:</strong> <em>csv</em>  </p>
+</li>
+<li>
+<h4>Fields</h4>
+<p><strong>Syntax:</strong> fields="field1, field2, field3"</p><p>
+<strong>Description:</strong> Limit the fields to be written to the exported file. Wildcards are supported.</p><p>
+<strong>Default:</strong> All (*)  </p>
+</li>
+<li>
+<h4>Compression</h4>
+<p><strong>Syntax:</strong> compress=[true|false]</p><p>
+<strong>Description:</strong> Create the file as a .gz compressed archive</p><p>
+<strong>Default:</strong> Specified within the target configuration  </p>
+</li>
+</ul>
+<hr />
+<h2>Splunk HEC Event Push (ephec)</h2>
+<p>Push Splunk search results to Splunk HTTP Event Collector (HEC) listener.</p>
+<h3>Capabilities</h3>
+<ul>
+<li>configure_ep_hec_read  </li>
+<li>configure_ep_hec_write  </li>
+</ul>
+<h3>Search Command Syntax</h3>
+<pre><code>&lt;search&gt; | ephec  
+        target=&lt;target name/alias&gt;  
+        host=[host_value|$host_field$]  
+        source=[source_value|$source_field$]  
+        sourcetype=[sourcetype_value|$sourcetype_field$]  
+        index=[index_value|$index_field$]  </code></pre>
 <h4>Arguments</h4>
 <ul>
 <li>
 <h4>Host</h4>
-<p class="option_block"><strong>Syntax:</strong> host=[host_value|$host_field$]</p>
-<p class="option_block"><strong>Description:</strong> Field or string to be assigned to the host field on the pushed event</p>
-<p class="option_block"><strong>Default:</strong> $host$, or if not defined, the hostname of the sending host (from inputs.conf)  </p>
+<p><strong>Syntax:</strong> host=[host_value|$host_field$]</p><p>
+<strong>Description:</strong> Field or string to be assigned to the host field on the pushed event</p><p>
+<strong>Default:</strong> $host$, or if not defined, the hostname of the sending host (from inputs.conf)  </p>
 </li>
 <li>
 <h4>Source</h4>
-<p class="option_block"><strong>Syntax:</strong> source=[source_value|$source_field$]</p>
-<p class="option_block"><strong>Description:</strong> Field or string to be assigned to the source field on the pushed event</p>
-<p class="option_block"><strong>Default:</strong> $source$, or if not defined, it is omitted  </p>
+<p><strong>Syntax:</strong> source=[source_value|$source_field$]</p><p>
+<strong>Description:</strong> Field or string to be assigned to the source field on the pushed event</p><p>
+<strong>Default:</strong> $source$, or if not defined, it is omitted  </p>
 </li>
 <li>
 <h4>Sourcetype</h4>
-<p class="option_block"><strong>Syntax:</strong> sourcetype=[sourcetype_value|$sourcetype_field$]</p>
-<p class="option_block"><strong>Description:</strong> Field or string to be assigned to the sourcetype field on the pushed event</p>
-<p class="option_block"><strong>Default:</strong> $sourcetype$, or if not defined, json  </p>
+<p><strong>Syntax:</strong> sourcetype=[sourcetype_value|$sourcetype_field$]</p><p>
+<strong>Description:</strong> Field or string to be assigned to the sourcetype field on the pushed event</p><p>
+<strong>Default:</strong> $sourcetype$, or if not defined, json  </p>
 </li>
 <li>
 <h4>Index</h4>
-<p class="option_block"><strong>Syntax:</strong> index=[index_value|$index_field$]</p>
-<p class="option_block"><strong>Description:</strong> The remote index in which to store the pushed event</p>
-<p class="option_block"><strong>Default:</strong> $index$, or if not defined, the remote endpoint's default.  </p>
+<p><strong>Syntax:</strong> index=[index_value|$index_field$]</p><p>
+<strong>Description:</strong> The remote index in which to store the pushed event</p><p>
+<strong>Default:</strong> $index$, or if not defined, the remote endpoint's default.  </p>
 </li>
 </ul>
-<h1>Support</h1>
-<p>Having trouble with the app? Feel free to <a href="mailto:contact@deductiv.net">email us</a> and we’ll help you sort it out. You can also <a href="https://splunk-usergroups.slack.com/team/U30E9LS79">reach the author</a> on the Splunk Community Slack.</p>
-<h1>Roadmap</h1>
-<p>We welcome your input on our app feature roadmap, which can be found on <a href="https://trello.com/b/YbFOsuKJ/deductiv-http-event-push-app-for-splunk">Trello</a>.</p>
+<hr />
+<h2>Support</h2>
+<p>Having trouble with the app? Feel free to <a href="mailto:contact@deductiv.net">email us</a> and we’ll help you sort it out. You can also <a href="https://splunk-usergroups.slack.com/team/U30E9LS79">reach the author</a> on the Splunk Community Slack.  </p>
+<h2>Roadmap</h2>
+<p>We welcome your input on our app feature roadmap, which can be found on <a href="https://trello.com/b/YbFOsuKJ/event-push-add-on-for-splunk-by-deductiv">Trello</a>.</p>
+</div>
 </body>
 </html>
     </panel>

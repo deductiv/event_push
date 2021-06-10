@@ -1,5 +1,9 @@
 <nav search_view="search" color="#426E86">
   <view name="documentation" default='true' />
   <view name="setup" />
+  <saved name="Event Push Logs" />
+  <a href="mailto:contact@deductiv.net?subject=Event Push Support">Support</a>
+  <a href="https://github.com/deductiv/event_push">Project Home</a>
+  <a href="https://www.deductiv.net/">Deductiv Website</a>
   <view name="search" />
 </nav>
