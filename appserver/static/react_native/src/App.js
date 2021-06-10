@@ -642,10 +642,10 @@ class App extends React.Component {
 	}
 
 	handleFileAction = (data) => {
-			if (!data.payload.targetFile || !data.payload.targetFile.isDir) return;
-			const newPrefix = `${data.payload.targetFile.id.replace(/\/*$/, '')}/`;
-			this.show_folder_contents(this.state.current_config, this.state.current_config_alias, this.state.current_config_container, newPrefix)
-		}
+		if (!data.payload.targetFile || !data.payload.targetFile.isDir) return;
+		const newPrefix = `${data.payload.targetFile.id.replace(/\/*$/, '')}/`;
+		this.show_folder_contents(this.state.current_config, this.state.current_config_alias, this.state.current_config_container, newPrefix)
+	}
 
 	// Set the state data when adding a configuration item using the table view
 	show_folder_contents = (config_file, alias, container_name, folder) => {
@@ -882,14 +882,14 @@ class App extends React.Component {
 					</TabPanel>
 					<TabPanel className="tab-pane">
 						<this.EPTabContent 
-							title="Splunk HTTP Event Collector Event Push (ephec)" 
+							title="Event Push to Splunk HTTP Event Collector (ephec)" 
 							heading="Splunk HTTP Event Collector Connections" 
 							action_columns="2" 
 							config="ep_hec" />
 					</TabPanel>
 					<TabPanel className="tab-pane">
 						<this.EPTabContent 
-							title="Amazon Web Services S3 Event Push (epawss3)" 
+							title="Event Push to AWS S3 (epawss3)" 
 							heading="AWS S3-Compatible Connections" 
 							action_columns="3"
 							browsable="true"
@@ -897,7 +897,7 @@ class App extends React.Component {
 					</TabPanel>
 					<TabPanel className="tab-pane">
 						<this.EPTabContent 
-							title="Box (epbox)" 
+							title="Event Push to Box (epbox)" 
 							heading="Box Connections" 
 							action_columns="3"
 							browsable="true"
@@ -907,7 +907,7 @@ class App extends React.Component {
 					</TabPanel>
 					<TabPanel className="tab-pane">
 						<this.EPTabContent 
-							title="SFTP (epsftp)" 
+							title="Event Push to SFTP (epsftp)" 
 							heading="SFTP Connections" 
 							action_columns="3"
 							browsable="true"
@@ -915,7 +915,7 @@ class App extends React.Component {
 					</TabPanel>
 					<TabPanel className="tab-pane">
 						<this.EPTabContent 
-							title="SMB (epsmb)" 
+							title="Event Push to SMB (epsmb)" 
 							heading="SMB Connections" 
 							action_columns="3"
 							browsable="true"

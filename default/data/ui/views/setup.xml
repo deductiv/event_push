@@ -1,5 +1,5 @@
-<form script="react/main_bootstrap.js" stylesheet="application.css">
-  <label>Event Push Setup</label>
+<form script="react/main_bootstrap.js" stylesheet="application.css" hideEdit="true">
+  <label>App Setup</label>
   <row>
     <panel>
       <html id="tab_container">
