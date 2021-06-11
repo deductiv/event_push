@@ -1,6 +1,17 @@
 <form class="form-horizontal form-complex">
+    <style>
+    splunk-control-group > label.control-label {
+        width: 150px !important; padding-right: 10px;
+    }
+    splunk-control-group > div[role=group] {
+        margin-bottom: 0;
+    }
+    splunk-search-dropdown[name^='action.alert_ep'] > div > div > div[data-component='splunk-core:/splunkjs/mvc/components/Dropdown'] {
+        width: 230px;
+    }
+    </style>
 
-    <splunk-control-group label="SFTP Destination">
+    <splunk-control-group label="SFTP Destination" style="width: 150px; padding-right: 10px">
             <splunk-search-dropdown name="action.alert_ep_sftp.param.dest_guid"
                     search="| rest /servicesNS/-/event_push/event_push/ep_sftp | table title alias" 
                     label-field="alias" value-field="title" />
@@ -8,15 +19,15 @@
     </splunk-control-group>
 
     <div class="control-group">
-        <label class="control-label" style="width: 220px;" for="outputfile">Output Folder/File</label>
-        <div class="controls controls-block" style="margin-left: 230px; width: 246px;">
+        <label class="control-label" style="width: 150px;" for="outputfile">Output Folder/File</label>
+        <div class="controls controls-block" style="margin-left: 160px; width: 246px;">
             <input type="text" name="action.alert_ep_sftp.param.outputfile" id="outputfile" />
         </div>
     </div>
 
     <div class="control-group">
-        <label class="control-label" style="width: 220px;" for="outputformat">Output Format</label>
-        <div class="controls controls-block" style="margin-left: 230px; width: 246px;">
+        <label class="control-label" style="width: 150px;" for="outputformat">Output Format</label>
+        <div class="controls controls-block" style="margin-left: 160px; width: 246px;">
             <select id="outputformat" name="action.alert_ep_sftp.param.outputformat"> 
                 <option value="raw">Raw Text (_raw contents)</option>
                 <option value="json">JSON</option>
@@ -29,15 +40,15 @@
     </div>
 
     <div class="control-group">
-        <label class="control-label" style="width: 220px;" for="fields">Fields List</label>
-        <div class="controls controls-block" style="margin-left: 230px; width: 246px;">
+        <label class="control-label" style="width: 150px;" for="fields">Fields List</label>
+        <div class="controls controls-block" style="margin-left: 160px; width: 246px;">
             <input type="text" name="action.alert_ep_sftp.param.fields" id="fields" />
         </div>
     </div>
 
     <div class="control-group">
-        <label class="control-label" style="width: 220px;" for="compress">Compression</label>
-        <div class="controls controls-block" style="margin-left: 230px; width: 246px;">
+        <label class="control-label" style="width: 150px;" for="compress">Compression</label>
+        <div class="controls controls-block" style="margin-left: 160px; width: 246px;">
             <input type="checkbox" name="action.alert_ep_sftp.param.compress" id="compress" />
         </div>
     </div>

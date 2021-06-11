@@ -1,6 +1,17 @@
 <form class="form-horizontal form-complex">
+    <style>
+    splunk-control-group > label.control-label {
+        width: 150px !important; padding-right: 10px;
+    }
+    splunk-control-group > div[role=group] {
+        margin-bottom: 0;
+    }
+    splunk-search-dropdown[name^='action.alert_ep'] > div > div > div[data-component='splunk-core:/splunkjs/mvc/components/Dropdown'] {
+        width: 230px;
+    }
+    </style>
 
-    <splunk-control-group label="Target Instance">
+    <splunk-control-group label="Target Instance" style="width: 150px; padding-right: 10px">
             <splunk-search-dropdown name="action.alert_ep_hec.param.dest_guid"
                     search="| rest /servicesNS/-/event_push/event_push/ep_hec | table title alias" 
                     label-field="alias" value-field="title" />
@@ -8,33 +19,33 @@
     </splunk-control-group>
 
     <div class="control-group">
-        <label class="control-label" style="width: 220px;" for="output_source">Event Source (e.g. $name$)</label>
-        <div class="controls controls-block" style="margin-left: 230px; width: 246px;">
+        <label class="control-label" style="width: 150px;" for="output_source">Event Source (e.g. $name$)</label>
+        <div class="controls controls-block" style="margin-left: 160px; width: 246px;">
             <input type="text" name="action.alert_ep_hec.param.output_source" id="source"/>
         </div>
     </div>
 
     <div class="control-group">
-        <label class="control-label" style="width: 220px;" for="output_sourcetype">Event Sourcetype (e.g. $result.sourcetype$)</label>
+        <label class="control-label" style="width: 150px;" for="output_sourcetype">Event Sourcetype (e.g. $result.sourcetype$)</label>
 
-        <div class="controls controls-block" style="margin-left: 230px; width: 246px;">
+        <div class="controls controls-block" style="margin-left: 160px; width: 246px;">
             <input type="text" name="action.alert_ep_hec.param.output_sourcetype" id="sourcetype" />
         </div>
     </div>
 
     <div class="control-group">
-        <label class="control-label" style="width: 220px;" for="output_index">Event Index</label>
+        <label class="control-label" style="width: 150px;" for="output_index">Event Index</label>
 
-        <div class="controls controls-block" style="margin-left: 230px; width: 246px;">
+        <div class="controls controls-block" style="margin-left: 160px; width: 246px;">
             <input type="text" name="action.alert_ep_hec.param.output_index" id="index" />
         </div>
     </div>
     
 
     <div class="control-group">
-        <label class="control-label" style="width: 220px;" for="output_host">Event Host</label>
+        <label class="control-label" style="width: 150px;" for="output_host">Event Host</label>
 
-        <div class="controls controls-block" style="margin-left: 230px; width: 246px;">
+        <div class="controls controls-block" style="margin-left: 160px; width: 246px;">
             <input type="text" name="action.alert_ep_hec.param.output_host" id="host" />
         </div>
     </div>
