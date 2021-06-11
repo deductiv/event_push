@@ -351,6 +351,7 @@ def yield_smb_object(content, folder_path):
 		return None
 
 def get_box_connection(target_config):
+	from boxsdk import JWTAuth, Client, BoxAPIException
 	# Check to see if we have credentials
 	valid_settings = []
 	for l in list(target_config.keys()):
@@ -405,8 +406,7 @@ def get_box_connection(target_config):
 
 
 def get_box_directory(target_config, folder_path):
-	global JWTAuth, Client, BoxAPIException
-	from boxsdk import JWTAuth, Client, BoxAPIException
+	from boxsdk import BoxAPIException
 	
 	# Let the exception pass through
 	client = get_box_connection(target_config)
