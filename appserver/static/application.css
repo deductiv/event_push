@@ -274,6 +274,14 @@ padding-left: 10px;
 .MuiTypography-h6 {
 font-size: 14px !important;
 }
+/* Dropdown in edit mode */
+div.MuiSelect-select.MuiInput-input {
+font-size: 12px !important;
+}
+/* Dropdown / multiselect text pop-up */
+div.MuiPopover-root > div.MuiPopover-paper > ul > li.MuiListItem-root {
+font-size: 12px !important;
+}
 
 /*
 .fade {
@@ -390,6 +398,9 @@ height: 100%;
 }
 #ep_file_browser_modal > div {
 height: 90%;
+}
+#ep_file_browser_modal > div > div.modal-body {
+padding: 0;
 }
 .modal.fade.in {
 height: 60%;
